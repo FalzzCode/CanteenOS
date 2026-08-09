@@ -7,6 +7,7 @@ import { demoSalesMix, type DemoSalesMixItem } from "../lib/demo-data";
 import { getActiveProfile, signOut } from "../lib/supabase/auth";
 import { getCatalog } from "../lib/supabase/catalog";
 import { isSupabaseConfigured } from "../lib/supabase/client";
+import { getDashboardSummary, type DashboardSummary } from "../lib/supabase/dashboard";
 import { getOpenShift } from "../lib/supabase/operations";
 import { getSalesMix } from "../lib/supabase/reports";
 import { AuthScreen } from "./auth-screen";
@@ -166,6 +167,7 @@ function StatCard({
 
 function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
   const [salesMix, setSalesMix] = useState<DemoSalesMixItem[]>(demoSalesMix);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,8 +181,12 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
       from.setDate(from.getDate() - 7);
 
       try {
-        const liveMix = await getSalesMix(outletId, from.toISOString(), to.toISOString());
+        const [liveMix, liveSummary] = await Promise.all([
+          getSalesMix(outletId, from.toISOString(), to.toISOString()),
+          getDashboardSummary(outletId, from.toISOString(), to.toISOString()),
+        ]);
         if (liveMix && !cancelled) setSalesMix(liveMix);
+        if (liveSummary && !cancelled) setSummary(liveSummary);
       } catch {
         // Keep the demo mix visible when the live reporting function is not configured yet.
       }
@@ -192,14 +198,37 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
 
   const ratioData = buildRatioData(salesMix);
   const ratioGradient = buildRatioGradient(ratioData);
+  const fallbackDailySales = [
+    { day: "Sen", amount: 2900000 },
+    { day: "Sel", amount: 3300000 },
+    { day: "Rab", amount: 2400000 },
+    { day: "Kam", amount: 3750000 },
+    { day: "Jum", amount: 4300000 },
+    { day: "Sab", amount: 3500000 },
+    { day: "Min", amount: 4860000 },
+  ];
+  const dailySales = summary?.dailySales.length ? summary.dailySales.map((item) => ({ day: item.day.slice(-2), amount: item.amount })) : fallbackDailySales;
+  const maxDailySales = Math.max(...dailySales.map((item) => item.amount), 1);
+  const totalSales = summary?.totalSales ?? 4860000;
+  const transactionCount = summary?.transactionCount ?? 186;
+  const averageOrder = summary?.averageOrder ?? 26100;
+  const grossProfitEstimate = summary?.grossProfitEstimate ?? 1760000;
+  const topProducts = summary?.topProducts.length ? summary.topProducts.map((item, index) => {
+    const visual = productVisuals["Makanan"];
+    return { rank: String(index + 1).padStart(2, "0"), name: item.name, meta: `${Math.round(item.units)} terjual`, value: formatCurrency(item.amount), tone: visual.tone, emoji: visual.emoji };
+  }) : [
+    { rank: "01", name: "Es Teh Manis", meta: "142 terjual", value: "Rp 710 rb", tone: "mint", emoji: "🧋" },
+    { rank: "02", name: "Nasi Goreng Spesial", meta: "86 terjual", value: "Rp 1,29 jt", tone: "peach", emoji: "🍳" },
+    { rank: "03", name: "Roti Bakar Coklat", meta: "61 terjual", value: "Rp 610 rb", tone: "gold", emoji: "🍞" },
+  ];
 
   return (
     <div className="page-stack">
       <section className="stats-grid" aria-label="Ringkasan KPI">
-        <StatCard label="Omzet hari ini" value="Rp 4,86 jt" change="14,8%" detail="vs kemarin" icon="↗" tone="stat-teal" />
-        <StatCard label="Transaksi" value="186" change="8,2%" detail="order selesai" icon="▦" tone="stat-gold" />
-        <StatCard label="Rata-rata order" value="Rp 26,1 rb" change="5,4%" detail="per transaksi" icon="◎" tone="stat-sky" />
-        <StatCard label="Gross profit est." value="Rp 1,76 jt" change="12,1%" detail="margin 36,2%" icon="◒" tone="stat-navy" />
+        <StatCard label="Omzet hari ini" value={formatCurrency(totalSales)} change="14,8%" detail="vs kemarin" icon="↗" tone="stat-teal" />
+        <StatCard label="Transaksi" value={transactionCount.toLocaleString("id-ID")} change="8,2%" detail="order selesai" icon="▦" tone="stat-gold" />
+        <StatCard label="Rata-rata order" value={formatCurrency(averageOrder)} change="5,4%" detail="per transaksi" icon="◎" tone="stat-sky" />
+        <StatCard label="Gross profit est." value={formatCurrency(grossProfitEstimate)} change="12,1%" detail="margin 36,2%" icon="◒" tone="stat-navy" />
       </section>
 
       <section className="dashboard-grid main-insights">
@@ -213,7 +242,7 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
           </div>
           <div className="sales-summary-row">
             <div>
-              <strong>Rp 24.860.000</strong>
+              <strong>{formatCurrency(totalSales)}</strong>
               <span className="positive-copy">↗ 18,6%</span>
             </div>
             <span className="muted-copy">dibanding periode sebelumnya</span>
@@ -221,10 +250,10 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
           <div className="chart-wrap">
             <div className="chart-y-labels" aria-hidden="true"><span>5 jt</span><span>3 jt</span><span>1 jt</span><span>0</span></div>
             <div className="bar-chart" aria-label="Grafik omzet penjualan selama tujuh hari">
-              {[{ day: "Sen", value: 58 }, { day: "Sel", value: 66 }, { day: "Rab", value: 48 }, { day: "Kam", value: 75 }, { day: "Jum", value: 86 }, { day: "Sab", value: 70 }, { day: "Min", value: 92 }].map((item, index) => (
+              {dailySales.map((item) => (
                 <div className="bar-column" key={item.day}>
-                  <span className="bar-tooltip">{index === 6 ? "Rp 4,86 jt" : `${Math.round(item.value / 20)} jt`}</span>
-                  <div className="bar-track"><div className="bar-fill" style={{ height: `${item.value}%` }} /></div>
+                  <span className="bar-tooltip">{formatCurrency(item.amount)}</span>
+                  <div className="bar-track"><div className="bar-fill" style={{ height: `${Math.max(8, (item.amount / maxDailySales) * 100)}%` }} /></div>
                   <span>{item.day}</span>
                 </div>
               ))}
@@ -263,11 +292,11 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
         <article className="card alert-card">
           <div className="card-heading">
             <div><span className="section-kicker">Perlu perhatian</span><h2>Alert operasional</h2></div>
-            <span className="alert-count">4 item</span>
+            <span className="alert-count">{summary?.lowStockCount ?? 4} item</span>
           </div>
           <div className="alert-list">
             <button className="alert-row warning" type="button" onClick={() => onNavigate("inventory")}>
-              <span className="alert-symbol">!</span><span><strong>7 item stok menipis</strong><small>Air mineral dan beberapa bahan perlu diisi ulang.</small></span><span className="arrow">→</span>
+              <span className="alert-symbol">!</span><span><strong>{summary?.lowStockCount ?? 7} item stok menipis</strong><small>Air mineral dan beberapa bahan perlu diisi ulang.</small></span><span className="arrow">→</span>
             </button>
             <button className="alert-row neutral" type="button" onClick={() => onNavigate("cash")}>
               <span className="alert-symbol">◒</span><span><strong>Shift kasir masih aktif</strong><small>Shift Ayu · Outlet Utama · sejak 09:42.</small></span><span className="arrow">→</span>
@@ -284,9 +313,9 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
             <button className="link-button" type="button" onClick={() => onNavigate("products")}>Kelola menu →</button>
           </div>
           <div className="product-ranking">
-            {[{ rank: "01", name: "Es Teh Manis", meta: "142 terjual", value: "Rp 710 rb", tone: "mint" }, { rank: "02", name: "Nasi Goreng Spesial", meta: "86 terjual", value: "Rp 1,29 jt", tone: "peach" }, { rank: "03", name: "Roti Bakar Coklat", meta: "61 terjual", value: "Rp 610 rb", tone: "gold" }].map((item) => (
+            {topProducts.map((item) => (
               <div className="ranking-row" key={item.rank}>
-                <span className="rank-number">{item.rank}</span><span className={`product-thumb ${item.tone}`}>{item.name === "Es Teh Manis" ? "🧋" : item.name === "Nasi Goreng Spesial" ? "🍳" : "🍞"}</span><span className="ranking-name"><strong>{item.name}</strong><small>{item.meta}</small></span><strong className="ranking-value">{item.value}</strong>
+                <span className="rank-number">{item.rank}</span><span className={`product-thumb ${item.tone}`}>{item.emoji}</span><span className="ranking-name"><strong>{item.name}</strong><small>{item.meta}</small></span><strong className="ranking-value">{item.value}</strong>
               </div>
             ))}
           </div>

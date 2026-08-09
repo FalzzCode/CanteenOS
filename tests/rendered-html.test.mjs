@@ -46,6 +46,7 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(authScreen, /requestPasswordReset/);
   assert.match(page, /getOpenShift/);
   assert.match(page, /getCatalog/);
+  assert.match(page, /getDashboardSummary/);
   assert.match(page, /catalog={catalog}/);
   assert.match(page, /handleLogout/);
   assert.match(plan, /Rasio penjualan/);
@@ -86,6 +87,8 @@ test("KantinKita data contract keeps the proposal's critical controls", async ()
   assert.match(migration, /grant execute on function public\.finalize_sale[\s\S]*to authenticated/i);
   assert.match(migration, /create or replace function private\.sales_mix/i);
   assert.match(migration, /grant execute on function public\.sales_mix[\s\S]*to authenticated/i);
+  assert.match(migration, /create or replace function private\.dashboard_summary/i);
+  assert.match(migration, /grant execute on function public\.dashboard_summary[\s\S]*to authenticated/i);
   assert.match(migration, /create policy refund_requests_manager_update/i);
   assert.match(migration, /create policy expenses_manager_or_finance_update/i);
   assert.match(migration, /on conflict \(id\) do nothing/i);

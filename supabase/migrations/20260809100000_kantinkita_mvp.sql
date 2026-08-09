@@ -735,3 +735,81 @@ $$;
 
 revoke all on function public.sales_mix(uuid, timestamptz, timestamptz) from public;
 grant execute on function public.sales_mix(uuid, timestamptz, timestamptz) to authenticated;
+
+create or replace function private.dashboard_summary(
+  p_outlet_id uuid,
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns jsonb
+language sql
+security definer
+set search_path = public, private, pg_temp
+as $$
+  with filtered_sales as (
+    select s.*
+    from public.sales s
+    where s.outlet_id = p_outlet_id
+      and s.sold_at >= p_from
+      and s.sold_at < p_to
+      and s.status = 'paid'
+      and private.is_active_user()
+      and private.can_access_outlet(p_outlet_id)
+  ),
+  daily_sales as (
+    select fs.sold_at::date as day, round(sum(fs.total), 2) as amount
+    from filtered_sales fs
+    group by fs.sold_at::date
+  ),
+  top_products as (
+    select si.product_name_snapshot as name,
+           sum(si.qty) as units,
+           round(sum(si.line_total), 2) as amount
+    from public.sale_items si
+    join filtered_sales fs on fs.id = si.sale_id
+    group by si.product_name_snapshot
+    order by amount desc
+    limit 5
+  ),
+  gross_profit as (
+    select round(coalesce(sum(si.line_total - (si.qty * si.unit_cost_snapshot)), 0), 2) as amount
+    from public.sale_items si
+    join filtered_sales fs on fs.id = si.sale_id
+  )
+  select jsonb_build_object(
+    'total_sales', coalesce((select round(sum(fs.total), 2) from filtered_sales fs), 0),
+    'transaction_count', (select count(*) from filtered_sales),
+    'average_order', coalesce((select round(avg(fs.total), 2) from filtered_sales fs), 0),
+    'gross_profit_estimate', (select amount from gross_profit),
+    'low_stock_count', (
+      select count(*)
+      from public.inventory_items ii
+      where ii.outlet_id = p_outlet_id
+        and ii.active
+        and ii.qty_on_hand <= ii.min_stock
+        and private.is_active_user()
+        and private.can_access_outlet(p_outlet_id)
+    ),
+    'daily_sales', coalesce((select jsonb_agg(jsonb_build_object('day', ds.day, 'amount', ds.amount) order by ds.day) from daily_sales ds), '[]'::jsonb),
+    'top_products', coalesce((select jsonb_agg(jsonb_build_object('name', tp.name, 'units', tp.units, 'amount', tp.amount) order by tp.amount desc) from top_products tp), '[]'::jsonb)
+  );
+$$;
+
+revoke all on function private.dashboard_summary(uuid, timestamptz, timestamptz) from public;
+grant execute on function private.dashboard_summary(uuid, timestamptz, timestamptz) to authenticated;
+
+create or replace function public.dashboard_summary(
+  p_outlet_id uuid,
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns jsonb
+language sql
+security invoker
+set search_path = public, private, pg_temp
+as $$
+  select private.dashboard_summary($1, $2, $3);
+$$;
+
+revoke all on function public.dashboard_summary(uuid, timestamptz, timestamptz) from public;
+grant execute on function public.dashboard_summary(uuid, timestamptz, timestamptz) to authenticated;
