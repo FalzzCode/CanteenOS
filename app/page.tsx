@@ -322,6 +322,7 @@ function POS({
   updateQty,
   cartTotal,
   paymentOpen,
+  paymentBusy,
   setPaymentOpen,
   paymentMethod,
   setPaymentMethod,
@@ -336,6 +337,7 @@ function POS({
   updateQty: (id: number | string, delta: number) => void;
   cartTotal: number;
   paymentOpen: boolean;
+  paymentBusy: boolean;
   setPaymentOpen: (value: boolean) => void;
   paymentMethod: string;
   setPaymentMethod: (value: string) => void;
@@ -377,7 +379,7 @@ function POS({
         <div className="cart-shortcuts"><span><kbd>F2</kbd> Cari</span><span><kbd>F4</kbd> Bayar</span><span><kbd>Esc</kbd> Batal</span></div>
       </aside>
 
-      {paymentOpen && <div className="modal-backdrop" role="presentation"><div className="payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-title"><button className="modal-close" type="button" onClick={() => setPaymentOpen(false)} aria-label="Tutup">×</button><span className="section-kicker">Finalisasi transaksi</span><h2 id="payment-title">Pilih metode pembayaran</h2><p>Total yang harus dibayar</p><strong className="modal-total">{formatCurrency(cartTotal)}</strong><div className="payment-methods">{["Tunai", "QRIS", "Lainnya"].map((method) => <button type="button" className={paymentMethod === method ? "payment-method active" : "payment-method"} key={method} onClick={() => setPaymentMethod(method)}><span>{method === "Tunai" ? "◒" : method === "QRIS" ? "▦" : "◇"}</span>{method}<i>{paymentMethod === method ? "✓" : ""}</i></button>)}</div><button className="confirm-pay" type="button" onClick={onPayment}>Konfirmasi pembayaran <span>→</span></button></div></div>}
+      {paymentOpen && <div className="modal-backdrop" role="presentation"><div className="payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-title"><button className="modal-close" type="button" onClick={() => setPaymentOpen(false)} aria-label="Tutup">×</button><span className="section-kicker">Finalisasi transaksi</span><h2 id="payment-title">Pilih metode pembayaran</h2><p>Total yang harus dibayar</p><strong className="modal-total">{formatCurrency(cartTotal)}</strong><div className="payment-methods">{["Tunai", "QRIS", "Lainnya"].map((method) => <button type="button" className={paymentMethod === method ? "payment-method active" : "payment-method"} key={method} onClick={() => setPaymentMethod(method)} disabled={paymentBusy}><span>{method === "Tunai" ? "◒" : method === "QRIS" ? "▦" : "◇"}</span>{method}<i>{paymentMethod === method ? "✓" : ""}</i></button>)}</div><button className="confirm-pay" type="button" onClick={onPayment} disabled={paymentBusy}>{paymentBusy ? "Menyimpan transaksi..." : "Konfirmasi pembayaran"} <span>→</span></button></div></div>}
     </div>
   );
 }
@@ -397,6 +399,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([products[1] ? { ...products[1], quantity: 2 } : { ...products[0], quantity: 1 }]);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentBusy, setPaymentBusy] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("Tunai");
   const [notice, setNotice] = useState("");
   const [showLogin, setShowLogin] = useState(false);
@@ -476,22 +479,29 @@ export default function Home() {
 
     const normalizedPaymentMethod = paymentMethod === "Tunai" ? "cash" : paymentMethod === "QRIS" ? "qris_manual" : "other";
     const clientTransactionId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `demo-${Date.now()}`;
-    const result = await finalizeSale({
-      outletId: activeOutletId,
-      shiftId: activeShiftId,
-      clientTransactionId,
-      items: cart.map((item) => ({ productId: String(item.id), quantity: item.quantity })),
-      paymentMethod: normalizedPaymentMethod,
-      paymentAmount: cartTotal,
-    });
-    setPaymentOpen(false);
-    setNotice(result.mode === "demo" ? `Pembayaran ${paymentMethod} tersimpan di demo mode` : `Transaksi ${result.saleNo} berhasil dicatat`);
-    setCart([]);
+    setPaymentBusy(true);
+    try {
+      const result = await finalizeSale({
+        outletId: activeOutletId,
+        shiftId: activeShiftId,
+        clientTransactionId,
+        items: cart.map((item) => ({ productId: String(item.id), quantity: item.quantity })),
+        paymentMethod: normalizedPaymentMethod,
+        paymentAmount: cartTotal,
+      });
+      setPaymentOpen(false);
+      setNotice(result.mode === "demo" ? `Pembayaran ${paymentMethod} tersimpan di demo mode` : `Transaksi ${result.saleNo} berhasil dicatat`);
+      setCart([]);
+    } catch (paymentError) {
+      setNotice(paymentError instanceof Error ? paymentError.message : "Pembayaran gagal. Coba lagi.");
+    } finally {
+      setPaymentBusy(false);
+    }
     window.setTimeout(() => setNotice(""), 2800);
   };
 
   if (!authReady) return <main className="auth-loading"><span className="brand-mark">KS</span><strong>Menyiapkan workspace...</strong></main>;
   if (showLogin) return <LoginScreen onLogin={handleLoginSuccess} />;
 
-  return <main className="app-shell"><aside className="sidebar"><div className="sidebar-brand"><span className="brand-mark">KS</span><span><strong>Kantin<span>Kita</span></strong><small>Digital School Canteen</small></span></div><div className="sidebar-profile"><div className="profile-avatar">AN<span className="online-indicator" /></div><div><strong>Ayu Nuraini</strong><span>Manager Kantin</span></div><span className="profile-menu">•••</span></div><nav className="side-nav" aria-label="Navigasi utama">{navItems.map((item) => <button type="button" key={item.id} className={activeNav === item.id ? "nav-item active" : "nav-item"} onClick={() => setActiveNav(item.id)}><span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>{item.badge && <span className={item.badge === "Shift aktif" ? "nav-badge live" : "nav-badge"}>{item.badge}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="support-card"><span className="support-icon">✦</span><strong>Butuh bantuan?</strong><span>Pelajari shortcut kasir dan SOP operasional.</span><button type="button">Buka panduan <span>→</span></button></div><button type="button" className="logout-button" onClick={handleLogout}><span>↪</span> Keluar dari akun</button><div className="sidebar-meta"><span>v0.1 MVP</span><span>Online <i className="online-dot" /></span></div></div></aside><section className="main-content"><header className="topbar"><div className="mobile-brand"><span className="brand-mark">KS</span><strong>Kantin<span>Kita</span></strong></div><div className="breadcrumb"><span>Workspace</span><i>•</i><strong>{activeMeta.title}</strong></div><div className="topbar-actions"><button className="outlet-select" type="button"><span className="outlet-dot" /><span><small>Outlet aktif</small>Outlet Utama</span><b>⌄</b></button><button className="icon-button" type="button" aria-label="Notifikasi">♢<span className="notification-dot" /></button><button className="top-profile" type="button" onClick={() => setShowLogin(true)}><span className="top-avatar">AN</span><span><strong>Ayu Nuraini</strong><small>Manager</small></span><b>⌄</b></button></div></header><div className="content-wrap"><div className="page-header"><div><span className="section-kicker">{activeMeta.eyebrow}</span><h1>{activeMeta.title}</h1><p>{activeMeta.description}</p></div><div className="page-actions">{activeNav === "dashboard" && <><button className="secondary-button" type="button" onClick={() => setActiveNav("reports")}>Unduh laporan <span>↓</span></button><button className="primary-button" type="button" onClick={() => setActiveNav("pos")}>Buka POS <span>→</span></button></>}{activeNav === "pos" && <span className="live-shift"><i className="live-dot" />Shift aktif · 09:42</span>}</div></div>{activeNav === "dashboard" ? <Dashboard onNavigate={setActiveNav} /> : activeNav === "pos" ? <POS catalog={catalog} cart={cart} search={search} setSearch={setSearch} addToCart={addToCart} updateQty={updateQty} cartTotal={cartTotal} paymentOpen={paymentOpen} setPaymentOpen={setPaymentOpen} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} onPayment={handlePayment} notice={notice} /> : <PlaceholderPage activeNav={activeNav} onNavigate={setActiveNav} />}</div></section></main>;
+  return <main className="app-shell"><aside className="sidebar"><div className="sidebar-brand"><span className="brand-mark">KS</span><span><strong>Kantin<span>Kita</span></strong><small>Digital School Canteen</small></span></div><div className="sidebar-profile"><div className="profile-avatar">AN<span className="online-indicator" /></div><div><strong>Ayu Nuraini</strong><span>Manager Kantin</span></div><span className="profile-menu">•••</span></div><nav className="side-nav" aria-label="Navigasi utama">{navItems.map((item) => <button type="button" key={item.id} className={activeNav === item.id ? "nav-item active" : "nav-item"} onClick={() => setActiveNav(item.id)}><span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>{item.badge && <span className={item.badge === "Shift aktif" ? "nav-badge live" : "nav-badge"}>{item.badge}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="support-card"><span className="support-icon">✦</span><strong>Butuh bantuan?</strong><span>Pelajari shortcut kasir dan SOP operasional.</span><button type="button">Buka panduan <span>→</span></button></div><button type="button" className="logout-button" onClick={handleLogout}><span>↪</span> Keluar dari akun</button><div className="sidebar-meta"><span>v0.1 MVP</span><span>Online <i className="online-dot" /></span></div></div></aside><section className="main-content"><header className="topbar"><div className="mobile-brand"><span className="brand-mark">KS</span><strong>Kantin<span>Kita</span></strong></div><div className="breadcrumb"><span>Workspace</span><i>•</i><strong>{activeMeta.title}</strong></div><div className="topbar-actions"><button className="outlet-select" type="button"><span className="outlet-dot" /><span><small>Outlet aktif</small>Outlet Utama</span><b>⌄</b></button><button className="icon-button" type="button" aria-label="Notifikasi">♢<span className="notification-dot" /></button><button className="top-profile" type="button" onClick={() => setShowLogin(true)}><span className="top-avatar">AN</span><span><strong>Ayu Nuraini</strong><small>Manager</small></span><b>⌄</b></button></div></header><div className="content-wrap"><div className="page-header"><div><span className="section-kicker">{activeMeta.eyebrow}</span><h1>{activeMeta.title}</h1><p>{activeMeta.description}</p></div><div className="page-actions">{activeNav === "dashboard" && <><button className="secondary-button" type="button" onClick={() => setActiveNav("reports")}>Unduh laporan <span>↓</span></button><button className="primary-button" type="button" onClick={() => setActiveNav("pos")}>Buka POS <span>→</span></button></>}{activeNav === "pos" && <span className="live-shift"><i className="live-dot" />Shift aktif · 09:42</span>}</div></div>{activeNav === "dashboard" ? <Dashboard onNavigate={setActiveNav} /> : activeNav === "pos" ? <POS catalog={catalog} cart={cart} search={search} setSearch={setSearch} addToCart={addToCart} updateQty={updateQty} cartTotal={cartTotal} paymentBusy={paymentBusy} paymentOpen={paymentOpen} setPaymentOpen={setPaymentOpen} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} onPayment={handlePayment} notice={notice} /> : <PlaceholderPage activeNav={activeNav} onNavigate={setActiveNav} />}</div></section></main>;
 }
