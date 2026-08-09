@@ -45,6 +45,8 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(authScreen, /signInWithPassword/);
   assert.match(authScreen, /requestPasswordReset/);
   assert.match(page, /getOpenShift/);
+  assert.match(page, /getCatalog/);
+  assert.match(page, /catalog={catalog}/);
   assert.match(page, /handleLogout/);
   assert.match(plan, /Rasio penjualan/);
   assert.match(plan, /Acceptance criteria MVP/);

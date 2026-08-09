@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { finalizeSale } from "../lib/pos";
 import { demoSalesMix, type DemoSalesMixItem } from "../lib/demo-data";
 import { getActiveProfile, signOut } from "../lib/supabase/auth";
+import { getCatalog } from "../lib/supabase/catalog";
 import { isSupabaseConfigured } from "../lib/supabase/client";
 import { getOpenShift } from "../lib/supabase/operations";
 import { getSalesMix } from "../lib/supabase/reports";
@@ -23,7 +24,7 @@ type NavKey =
   | "admin";
 
 type Product = {
-  id: number;
+  id: number | string;
   name: string;
   category: string;
   price: number;
@@ -56,6 +57,13 @@ const products: Product[] = [
   { id: 7, name: "Susu Coklat", category: "Minuman", price: 8000, stock: 16, emoji: "🥛", tone: "rose" },
   { id: 8, name: "Chicken Pop", category: "Makanan", price: 12000, stock: 10, emoji: "🍗", tone: "peach" },
 ];
+
+const productVisuals: Record<string, { emoji: string; tone: string }> = {
+  Makanan: { emoji: "🍳", tone: "peach" },
+  Minuman: { emoji: "🧋", tone: "mint" },
+  Camilan: { emoji: "🍞", tone: "gold" },
+  Lainnya: { emoji: "🍽️", tone: "blue" },
+};
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -306,6 +314,7 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
 }
 
 function POS({
+  catalog = products,
   cart,
   search,
   setSearch,
@@ -319,11 +328,12 @@ function POS({
   onPayment,
   notice,
 }: {
+  catalog?: Product[];
   cart: CartItem[];
   search: string;
   setSearch: (value: string) => void;
   addToCart: (product: Product) => void;
-  updateQty: (id: number, delta: number) => void;
+  updateQty: (id: number | string, delta: number) => void;
   cartTotal: number;
   paymentOpen: boolean;
   setPaymentOpen: (value: boolean) => void;
@@ -333,7 +343,7 @@ function POS({
   notice: string;
 }) {
   const [category, setCategory] = useState("Semua");
-  const filteredProducts = useMemo(() => products.filter((product) => (category === "Semua" || product.category === category) && product.name.toLowerCase().includes(search.toLowerCase())), [category, search]);
+  const filteredProducts = useMemo(() => catalog.filter((product) => (category === "Semua" || product.category === category) && product.name.toLowerCase().includes(search.toLowerCase())), [catalog, category, search]);
 
   return (
     <div className="pos-layout">
@@ -393,6 +403,7 @@ export default function Home() {
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
   const [activeOutletId, setActiveOutletId] = useState("demo");
   const [activeShiftId, setActiveShiftId] = useState("demo");
+  const [catalog, setCatalog] = useState<Product[]>(products);
 
   const refreshSession = useCallback(async (): Promise<boolean> => {
     if (!isSupabaseConfigured) {
@@ -408,8 +419,16 @@ export default function Home() {
 
       const outletId = profile.defaultOutletId ?? (import.meta.env.VITE_DEFAULT_OUTLET_ID as string | undefined) ?? "demo";
       const openShift = outletId === "demo" ? null : await getOpenShift(outletId);
+      const liveCatalog = outletId === "demo" ? null : await getCatalog(outletId);
       setActiveOutletId(outletId);
       setActiveShiftId(openShift?.id ?? "demo");
+      if (liveCatalog?.length) {
+        setCart([]);
+        setCatalog(liveCatalog.map((item) => {
+          const visual = productVisuals[item.category] ?? productVisuals.Lainnya;
+          return { id: item.id, name: item.name, category: item.category, price: item.sellPrice, stock: item.stock, emoji: visual.emoji, tone: visual.tone };
+        }));
+      }
       return true;
     } catch {
       setShowLogin(true);
@@ -447,7 +466,7 @@ export default function Home() {
     window.setTimeout(() => setNotice(""), 2400);
   };
 
-  const updateQty = (id: number, delta: number) => setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: item.quantity + delta } : item).filter((item) => item.quantity > 0));
+  const updateQty = (id: number | string, delta: number) => setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: item.quantity + delta } : item).filter((item) => item.quantity > 0));
   const handlePayment = async () => {
     if (isSupabaseConfigured && (activeOutletId === "demo" || activeShiftId === "demo")) {
       setNotice("Buka shift kasir aktif terlebih dahulu sebelum menerima transaksi live.");
@@ -474,5 +493,5 @@ export default function Home() {
   if (!authReady) return <main className="auth-loading"><span className="brand-mark">KS</span><strong>Menyiapkan workspace...</strong></main>;
   if (showLogin) return <LoginScreen onLogin={handleLoginSuccess} />;
 
-  return <main className="app-shell"><aside className="sidebar"><div className="sidebar-brand"><span className="brand-mark">KS</span><span><strong>Kantin<span>Kita</span></strong><small>Digital School Canteen</small></span></div><div className="sidebar-profile"><div className="profile-avatar">AN<span className="online-indicator" /></div><div><strong>Ayu Nuraini</strong><span>Manager Kantin</span></div><span className="profile-menu">•••</span></div><nav className="side-nav" aria-label="Navigasi utama">{navItems.map((item) => <button type="button" key={item.id} className={activeNav === item.id ? "nav-item active" : "nav-item"} onClick={() => setActiveNav(item.id)}><span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>{item.badge && <span className={item.badge === "Shift aktif" ? "nav-badge live" : "nav-badge"}>{item.badge}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="support-card"><span className="support-icon">✦</span><strong>Butuh bantuan?</strong><span>Pelajari shortcut kasir dan SOP operasional.</span><button type="button">Buka panduan <span>→</span></button></div><button type="button" className="logout-button" onClick={handleLogout}><span>↪</span> Keluar dari akun</button><div className="sidebar-meta"><span>v0.1 MVP</span><span>Online <i className="online-dot" /></span></div></div></aside><section className="main-content"><header className="topbar"><div className="mobile-brand"><span className="brand-mark">KS</span><strong>Kantin<span>Kita</span></strong></div><div className="breadcrumb"><span>Workspace</span><i>•</i><strong>{activeMeta.title}</strong></div><div className="topbar-actions"><button className="outlet-select" type="button"><span className="outlet-dot" /><span><small>Outlet aktif</small>Outlet Utama</span><b>⌄</b></button><button className="icon-button" type="button" aria-label="Notifikasi">♢<span className="notification-dot" /></button><button className="top-profile" type="button" onClick={() => setShowLogin(true)}><span className="top-avatar">AN</span><span><strong>Ayu Nuraini</strong><small>Manager</small></span><b>⌄</b></button></div></header><div className="content-wrap"><div className="page-header"><div><span className="section-kicker">{activeMeta.eyebrow}</span><h1>{activeMeta.title}</h1><p>{activeMeta.description}</p></div><div className="page-actions">{activeNav === "dashboard" && <><button className="secondary-button" type="button" onClick={() => setActiveNav("reports")}>Unduh laporan <span>↓</span></button><button className="primary-button" type="button" onClick={() => setActiveNav("pos")}>Buka POS <span>→</span></button></>}{activeNav === "pos" && <span className="live-shift"><i className="live-dot" />Shift aktif · 09:42</span>}</div></div>{activeNav === "dashboard" ? <Dashboard onNavigate={setActiveNav} /> : activeNav === "pos" ? <POS cart={cart} search={search} setSearch={setSearch} addToCart={addToCart} updateQty={updateQty} cartTotal={cartTotal} paymentOpen={paymentOpen} setPaymentOpen={setPaymentOpen} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} onPayment={handlePayment} notice={notice} /> : <PlaceholderPage activeNav={activeNav} onNavigate={setActiveNav} />}</div></section></main>;
+  return <main className="app-shell"><aside className="sidebar"><div className="sidebar-brand"><span className="brand-mark">KS</span><span><strong>Kantin<span>Kita</span></strong><small>Digital School Canteen</small></span></div><div className="sidebar-profile"><div className="profile-avatar">AN<span className="online-indicator" /></div><div><strong>Ayu Nuraini</strong><span>Manager Kantin</span></div><span className="profile-menu">•••</span></div><nav className="side-nav" aria-label="Navigasi utama">{navItems.map((item) => <button type="button" key={item.id} className={activeNav === item.id ? "nav-item active" : "nav-item"} onClick={() => setActiveNav(item.id)}><span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>{item.badge && <span className={item.badge === "Shift aktif" ? "nav-badge live" : "nav-badge"}>{item.badge}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="support-card"><span className="support-icon">✦</span><strong>Butuh bantuan?</strong><span>Pelajari shortcut kasir dan SOP operasional.</span><button type="button">Buka panduan <span>→</span></button></div><button type="button" className="logout-button" onClick={handleLogout}><span>↪</span> Keluar dari akun</button><div className="sidebar-meta"><span>v0.1 MVP</span><span>Online <i className="online-dot" /></span></div></div></aside><section className="main-content"><header className="topbar"><div className="mobile-brand"><span className="brand-mark">KS</span><strong>Kantin<span>Kita</span></strong></div><div className="breadcrumb"><span>Workspace</span><i>•</i><strong>{activeMeta.title}</strong></div><div className="topbar-actions"><button className="outlet-select" type="button"><span className="outlet-dot" /><span><small>Outlet aktif</small>Outlet Utama</span><b>⌄</b></button><button className="icon-button" type="button" aria-label="Notifikasi">♢<span className="notification-dot" /></button><button className="top-profile" type="button" onClick={() => setShowLogin(true)}><span className="top-avatar">AN</span><span><strong>Ayu Nuraini</strong><small>Manager</small></span><b>⌄</b></button></div></header><div className="content-wrap"><div className="page-header"><div><span className="section-kicker">{activeMeta.eyebrow}</span><h1>{activeMeta.title}</h1><p>{activeMeta.description}</p></div><div className="page-actions">{activeNav === "dashboard" && <><button className="secondary-button" type="button" onClick={() => setActiveNav("reports")}>Unduh laporan <span>↓</span></button><button className="primary-button" type="button" onClick={() => setActiveNav("pos")}>Buka POS <span>→</span></button></>}{activeNav === "pos" && <span className="live-shift"><i className="live-dot" />Shift aktif · 09:42</span>}</div></div>{activeNav === "dashboard" ? <Dashboard onNavigate={setActiveNav} /> : activeNav === "pos" ? <POS catalog={catalog} cart={cart} search={search} setSearch={setSearch} addToCart={addToCart} updateQty={updateQty} cartTotal={cartTotal} paymentOpen={paymentOpen} setPaymentOpen={setPaymentOpen} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} onPayment={handlePayment} notice={notice} /> : <PlaceholderPage activeNav={activeNav} onNavigate={setActiveNav} />}</div></section></main>;
 }
