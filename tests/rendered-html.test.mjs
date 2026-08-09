@@ -29,10 +29,12 @@ test("server-renders the KantinKita workspace", async () => {
 });
 
 test("metadata and product UI replace the starter", async () => {
-  const [page, layout, packageJson] = await Promise.all([
+  const [page, layout, packageJson, modules, demoData] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../app/operational-modules.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/demo-data.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /Rasio penjualan/);
@@ -40,6 +42,15 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(layout, /KantinKita/);
   assert.doesNotMatch(layout, /Starter Project|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+  assert.match(page, /OperationsModule/);
+  assert.match(modules, /TransactionsModule/);
+  assert.match(modules, /ProductsModule/);
+  assert.match(modules, /InventoryModule/);
+  assert.match(modules, /PurchasingModule/);
+  assert.match(modules, /CashModule/);
+  assert.match(modules, /ReportsModule/);
+  assert.match(modules, /AdminModule/);
+  assert.match(demoData, /demoSalesMix/);
 });
 
 test("KantinKita data contract keeps the proposal's critical controls", async () => {
@@ -55,5 +66,7 @@ test("KantinKita data contract keeps the proposal's critical controls", async ()
   assert.match(migration, /client_transaction_id text not null unique/i);
   assert.match(migration, /create or replace function private\.finalize_sale/i);
   assert.match(migration, /grant execute on function public\.finalize_sale[\s\S]*to authenticated/i);
+  assert.match(migration, /create or replace function private\.sales_mix/i);
+  assert.match(migration, /grant execute on function public\.sales_mix[\s\S]*to authenticated/i);
   assert.match(migration, /on conflict \(id\) do nothing/i);
 });

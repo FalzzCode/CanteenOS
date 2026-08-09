@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { finalizeSale } from "../lib/pos";
+import { demoSalesMix, type DemoSalesMixItem } from "../lib/demo-data";
+import { getActiveProfile } from "../lib/supabase/auth";
+import { getSalesMix } from "../lib/supabase/reports";
+import { OperationsModule, type ModuleKey } from "./operational-modules";
 
 type NavKey =
   | "dashboard"
@@ -50,19 +54,26 @@ const products: Product[] = [
   { id: 8, name: "Chicken Pop", category: "Makanan", price: 12000, stock: 10, emoji: "🍗", tone: "peach" },
 ];
 
-const ratioData = [
-  { label: "Makanan", value: 42, amount: "Rp 2,04 jt", color: "#0f6675" },
-  { label: "Minuman", value: 31, amount: "Rp 1,51 jt", color: "#f1b653" },
-  { label: "Camilan", value: 17, amount: "Rp 826 rb", color: "#e58c6d" },
-  { label: "Lainnya", value: 10, amount: "Rp 486 rb", color: "#777d9a" },
-];
-
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(value);
+
+type RatioRow = DemoSalesMixItem & { amountLabel: string };
+
+function buildRatioData(salesMix: DemoSalesMixItem[]): RatioRow[] {
+  return salesMix.map((item) => ({ ...item, amountLabel: formatCurrency(item.amount) }));
+}
+
+function buildRatioGradient(ratioData: RatioRow[]): string {
+  const stops = ratioData.map((item, index) => {
+    const start = ratioData.slice(0, index).reduce((sum, previous) => sum + previous.value, 0);
+    return `${item.color} ${start}% ${start + item.value}%`;
+  });
+  return `conic-gradient(${stops.join(", ")})`;
+}
 
 const pageMeta: Record<NavKey, { eyebrow: string; title: string; description: string }> = {
   dashboard: {
@@ -143,6 +154,34 @@ function StatCard({
 }
 
 function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
+  const [salesMix, setSalesMix] = useState<DemoSalesMixItem[]>(demoSalesMix);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadLiveMix = async () => {
+      const profile = await getActiveProfile();
+      const outletId = profile?.defaultOutletId ?? (import.meta.env.VITE_DEFAULT_OUTLET_ID as string | undefined);
+      if (!outletId) return;
+
+      const to = new Date();
+      const from = new Date(to);
+      from.setDate(from.getDate() - 7);
+
+      try {
+        const liveMix = await getSalesMix(outletId, from.toISOString(), to.toISOString());
+        if (liveMix && !cancelled) setSalesMix(liveMix);
+      } catch {
+        // Keep the demo mix visible when the live reporting function is not configured yet.
+      }
+    };
+
+    void loadLiveMix();
+    return () => { cancelled = true; };
+  }, []);
+
+  const ratioData = buildRatioData(salesMix);
+  const ratioGradient = buildRatioGradient(ratioData);
+
   return (
     <div className="page-stack">
       <section className="stats-grid" aria-label="Ringkasan KPI">
@@ -192,7 +231,7 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
             <button className="link-button" type="button" onClick={() => onNavigate("reports")}>Lihat laporan →</button>
           </div>
           <div className="ratio-content">
-            <div className="ratio-donut" aria-label="Total rasio penjualan 100 persen">
+            <div className="ratio-donut" aria-label="Total rasio penjualan 100 persen" style={{ background: ratioGradient }}>
               <div><strong>100%</strong><span>total mix</span></div>
             </div>
             <div className="ratio-list">
@@ -200,7 +239,7 @@ function Dashboard({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
                 <div className="ratio-row" key={item.label}>
                   <div className="ratio-row-top"><span><i className="legend-dot" style={{ background: item.color }} />{item.label}</span><strong>{item.value}%</strong></div>
                   <div className="ratio-track"><div className="ratio-fill" style={{ width: `${item.value}%`, background: item.color }} /></div>
-                  <span className="ratio-amount">{item.amount}</span>
+                  <span className="ratio-amount">{item.amountLabel}</span>
                 </div>
               ))}
             </div>
@@ -330,7 +369,8 @@ function POS({
   );
 }
 
-function PlaceholderPage({ activeNav, onNavigate }: { activeNav: NavKey; onNavigate: (key: NavKey) => void }) {
+function PlaceholderPage({ activeNav, onNavigate, showModule = true }: { activeNav: NavKey; onNavigate: (key: NavKey) => void; showModule?: boolean }) {
+  if (showModule) return <OperationsModule activeNav={activeNav as ModuleKey} />;
   const meta = pageMeta[activeNav];
   return <div className="placeholder-page"><div className="placeholder-icon">{navItems.find((item) => item.id === activeNav)?.icon}</div><span className="section-kicker">{meta.eyebrow}</span><h1>{meta.title}</h1><p>{meta.description}</p><div className="placeholder-actions"><button className="primary-button" type="button" onClick={() => onNavigate(activeNav === "reports" ? "dashboard" : "pos")}>{activeNav === "reports" ? "Kembali ke dashboard" : "Buka alur utama"}<span>→</span></button><button className="secondary-button" type="button" onClick={() => onNavigate("dashboard")}>Lihat ringkasan</button></div><div className="coming-soon-grid"><div><strong>Siap dikembangkan</strong><span>Struktur modul sudah mengikuti blueprint proposal.</span></div><div><strong>Terhubung dengan audit</strong><span>Aksi sensitif nantinya tercatat dengan actor dan timestamp.</span></div><div><strong>Multi-outlet ready</strong><span>Filter outlet disiapkan sejak fondasi pertama.</span></div></div></div>;
 }

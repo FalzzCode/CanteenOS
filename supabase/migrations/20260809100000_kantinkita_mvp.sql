@@ -514,3 +514,50 @@ $$;
 
 revoke all on function public.finalize_sale(uuid, uuid, text, jsonb, public.payment_method, numeric, text) from public;
 grant execute on function public.finalize_sale(uuid, uuid, text, jsonb, public.payment_method, numeric, text) to authenticated;
+
+create or replace function private.sales_mix(
+  p_outlet_id uuid,
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns jsonb
+language sql
+security definer
+set search_path = public, private, pg_temp
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object('label', mix.label, 'amount', mix.amount) order by mix.amount desc), '[]'::jsonb)
+  from (
+    select coalesce(c.name, 'Lainnya') as label,
+           round(sum(si.line_total), 2) as amount
+    from public.sale_items si
+    join public.sales s on s.id = si.sale_id
+    join public.products p on p.id = si.product_id
+    left join public.categories c on c.id = p.category_id
+    where s.outlet_id = p_outlet_id
+      and s.sold_at >= p_from
+      and s.sold_at < p_to
+      and s.status = 'paid'
+      and private.is_active_user()
+      and private.can_access_outlet(p_outlet_id)
+    group by coalesce(c.name, 'Lainnya')
+  ) as mix;
+$$;
+
+revoke all on function private.sales_mix(uuid, timestamptz, timestamptz) from public;
+grant execute on function private.sales_mix(uuid, timestamptz, timestamptz) to authenticated;
+
+create or replace function public.sales_mix(
+  p_outlet_id uuid,
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns jsonb
+language sql
+security invoker
+set search_path = public, private, pg_temp
+as $$
+  select private.sales_mix($1, $2, $3);
+$$;
+
+revoke all on function public.sales_mix(uuid, timestamptz, timestamptz) from public;
+grant execute on function public.sales_mix(uuid, timestamptz, timestamptz) to authenticated;
