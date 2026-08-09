@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { finalizeSale } from "../lib/pos";
 import { demoSalesMix, type DemoSalesMixItem } from "../lib/demo-data";
-import { getActiveProfile } from "../lib/supabase/auth";
+import { getActiveProfile, signOut } from "../lib/supabase/auth";
+import { isSupabaseConfigured } from "../lib/supabase/client";
+import { getOpenShift } from "../lib/supabase/operations";
 import { getSalesMix } from "../lib/supabase/reports";
+import { AuthScreen } from "./auth-screen";
 import { OperationsModule, type ModuleKey } from "./operational-modules";
 
 type NavKey =
@@ -376,7 +379,7 @@ function PlaceholderPage({ activeNav, onNavigate, showModule = true }: { activeN
 }
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  return <main className="login-screen"><section className="login-art"><div className="login-brand"><span className="brand-mark">KS</span><span><strong>Kantin<span>Kita</span></strong><small>Sistem Kantin Digital Sekolah</small></span></div><div className="login-art-content"><span className="art-orbit orbit-one" /><span className="art-orbit orbit-two" /><div className="art-plate"><span className="food-icon">🍱</span><span className="food-leaf">✦</span><span className="food-dot dot-one" /><span className="food-dot dot-two" /><span className="food-dot dot-three" /></div><h1>Operasional kantin,<br /><em>lebih rapi.</em></h1><p>Layani antrean dengan cepat. Pantau stok dan kas dengan tenang.</p></div><span className="login-footer">© 2026 KantinKita · Untuk sekolah yang terus bertumbuh</span></section><section className="login-form-side"><div className="login-form-wrap"><span className="section-kicker">Portal operasional</span><h2>Selamat datang</h2><p>Masuk untuk melanjutkan ke workspace kantin sekolah.</p><button className="google-button" type="button" onClick={onLogin}><span className="google-g">G</span>Lanjutkan dengan Google</button><div className="form-divider"><span>atau masuk dengan email</span></div><label>Email kerja<input type="email" placeholder="nama@sekolah.sch.id" /></label><label>Password<div className="password-input"><input type="password" placeholder="Masukkan password" /><span>◉</span></div></label><button className="login-button" type="button" onClick={onLogin}>Masuk ke dashboard <span>→</span></button><button className="forgot-button" type="button">Lupa password?</button><div className="login-note"><span>i</span><span>Akses operasional hanya aktif untuk akun yang sudah diverifikasi dan disetujui admin.</span></div></div></section></main>;
+  return <AuthScreen onLoginSuccess={onLogin} />;
 }
 
 export default function Home() {
@@ -387,6 +390,50 @@ export default function Home() {
   const [paymentMethod, setPaymentMethod] = useState("Tunai");
   const [notice, setNotice] = useState("");
   const [showLogin, setShowLogin] = useState(false);
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [activeOutletId, setActiveOutletId] = useState("demo");
+  const [activeShiftId, setActiveShiftId] = useState("demo");
+
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    if (!isSupabaseConfigured) {
+      return true;
+    }
+
+    try {
+      const profile = await getActiveProfile();
+      if (!profile) {
+        setShowLogin(true);
+        return false;
+      }
+
+      const outletId = profile.defaultOutletId ?? (import.meta.env.VITE_DEFAULT_OUTLET_ID as string | undefined) ?? "demo";
+      const openShift = outletId === "demo" ? null : await getOpenShift(outletId);
+      setActiveOutletId(outletId);
+      setActiveShiftId(openShift?.id ?? "demo");
+      return true;
+    } catch {
+      setShowLogin(true);
+      return false;
+    } finally {
+      setAuthReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refreshSession(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshSession]);
+
+  const handleLoginSuccess = async () => {
+    if (await refreshSession()) setShowLogin(false);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    setActiveOutletId("demo");
+    setActiveShiftId("demo");
+    setShowLogin(true);
+  };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const activeMeta = pageMeta[activeNav];
@@ -402,11 +449,17 @@ export default function Home() {
 
   const updateQty = (id: number, delta: number) => setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: item.quantity + delta } : item).filter((item) => item.quantity > 0));
   const handlePayment = async () => {
+    if (isSupabaseConfigured && (activeOutletId === "demo" || activeShiftId === "demo")) {
+      setNotice("Buka shift kasir aktif terlebih dahulu sebelum menerima transaksi live.");
+      window.setTimeout(() => setNotice(""), 2800);
+      return;
+    }
+
     const normalizedPaymentMethod = paymentMethod === "Tunai" ? "cash" : paymentMethod === "QRIS" ? "qris_manual" : "other";
     const clientTransactionId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `demo-${Date.now()}`;
     const result = await finalizeSale({
-      outletId: "demo",
-      shiftId: "demo",
+      outletId: activeOutletId,
+      shiftId: activeShiftId,
       clientTransactionId,
       items: cart.map((item) => ({ productId: String(item.id), quantity: item.quantity })),
       paymentMethod: normalizedPaymentMethod,
@@ -418,7 +471,8 @@ export default function Home() {
     window.setTimeout(() => setNotice(""), 2800);
   };
 
-  if (showLogin) return <LoginScreen onLogin={() => setShowLogin(false)} />;
+  if (!authReady) return <main className="auth-loading"><span className="brand-mark">KS</span><strong>Menyiapkan workspace...</strong></main>;
+  if (showLogin) return <LoginScreen onLogin={handleLoginSuccess} />;
 
-  return <main className="app-shell"><aside className="sidebar"><div className="sidebar-brand"><span className="brand-mark">KS</span><span><strong>Kantin<span>Kita</span></strong><small>Digital School Canteen</small></span></div><div className="sidebar-profile"><div className="profile-avatar">AN<span className="online-indicator" /></div><div><strong>Ayu Nuraini</strong><span>Manager Kantin</span></div><span className="profile-menu">•••</span></div><nav className="side-nav" aria-label="Navigasi utama">{navItems.map((item) => <button type="button" key={item.id} className={activeNav === item.id ? "nav-item active" : "nav-item"} onClick={() => setActiveNav(item.id)}><span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>{item.badge && <span className={item.badge === "Shift aktif" ? "nav-badge live" : "nav-badge"}>{item.badge}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="support-card"><span className="support-icon">✦</span><strong>Butuh bantuan?</strong><span>Pelajari shortcut kasir dan SOP operasional.</span><button type="button">Buka panduan <span>→</span></button></div><button type="button" className="logout-button" onClick={() => setShowLogin(true)}><span>↪</span> Keluar dari akun</button><div className="sidebar-meta"><span>v0.1 MVP</span><span>Online <i className="online-dot" /></span></div></div></aside><section className="main-content"><header className="topbar"><div className="mobile-brand"><span className="brand-mark">KS</span><strong>Kantin<span>Kita</span></strong></div><div className="breadcrumb"><span>Workspace</span><i>•</i><strong>{activeMeta.title}</strong></div><div className="topbar-actions"><button className="outlet-select" type="button"><span className="outlet-dot" /><span><small>Outlet aktif</small>Outlet Utama</span><b>⌄</b></button><button className="icon-button" type="button" aria-label="Notifikasi">♢<span className="notification-dot" /></button><button className="top-profile" type="button" onClick={() => setShowLogin(true)}><span className="top-avatar">AN</span><span><strong>Ayu Nuraini</strong><small>Manager</small></span><b>⌄</b></button></div></header><div className="content-wrap"><div className="page-header"><div><span className="section-kicker">{activeMeta.eyebrow}</span><h1>{activeMeta.title}</h1><p>{activeMeta.description}</p></div><div className="page-actions">{activeNav === "dashboard" && <><button className="secondary-button" type="button" onClick={() => setActiveNav("reports")}>Unduh laporan <span>↓</span></button><button className="primary-button" type="button" onClick={() => setActiveNav("pos")}>Buka POS <span>→</span></button></>}{activeNav === "pos" && <span className="live-shift"><i className="live-dot" />Shift aktif · 09:42</span>}</div></div>{activeNav === "dashboard" ? <Dashboard onNavigate={setActiveNav} /> : activeNav === "pos" ? <POS cart={cart} search={search} setSearch={setSearch} addToCart={addToCart} updateQty={updateQty} cartTotal={cartTotal} paymentOpen={paymentOpen} setPaymentOpen={setPaymentOpen} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} onPayment={handlePayment} notice={notice} /> : <PlaceholderPage activeNav={activeNav} onNavigate={setActiveNav} />}</div></section></main>;
+  return <main className="app-shell"><aside className="sidebar"><div className="sidebar-brand"><span className="brand-mark">KS</span><span><strong>Kantin<span>Kita</span></strong><small>Digital School Canteen</small></span></div><div className="sidebar-profile"><div className="profile-avatar">AN<span className="online-indicator" /></div><div><strong>Ayu Nuraini</strong><span>Manager Kantin</span></div><span className="profile-menu">•••</span></div><nav className="side-nav" aria-label="Navigasi utama">{navItems.map((item) => <button type="button" key={item.id} className={activeNav === item.id ? "nav-item active" : "nav-item"} onClick={() => setActiveNav(item.id)}><span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>{item.badge && <span className={item.badge === "Shift aktif" ? "nav-badge live" : "nav-badge"}>{item.badge}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="support-card"><span className="support-icon">✦</span><strong>Butuh bantuan?</strong><span>Pelajari shortcut kasir dan SOP operasional.</span><button type="button">Buka panduan <span>→</span></button></div><button type="button" className="logout-button" onClick={handleLogout}><span>↪</span> Keluar dari akun</button><div className="sidebar-meta"><span>v0.1 MVP</span><span>Online <i className="online-dot" /></span></div></div></aside><section className="main-content"><header className="topbar"><div className="mobile-brand"><span className="brand-mark">KS</span><strong>Kantin<span>Kita</span></strong></div><div className="breadcrumb"><span>Workspace</span><i>•</i><strong>{activeMeta.title}</strong></div><div className="topbar-actions"><button className="outlet-select" type="button"><span className="outlet-dot" /><span><small>Outlet aktif</small>Outlet Utama</span><b>⌄</b></button><button className="icon-button" type="button" aria-label="Notifikasi">♢<span className="notification-dot" /></button><button className="top-profile" type="button" onClick={() => setShowLogin(true)}><span className="top-avatar">AN</span><span><strong>Ayu Nuraini</strong><small>Manager</small></span><b>⌄</b></button></div></header><div className="content-wrap"><div className="page-header"><div><span className="section-kicker">{activeMeta.eyebrow}</span><h1>{activeMeta.title}</h1><p>{activeMeta.description}</p></div><div className="page-actions">{activeNav === "dashboard" && <><button className="secondary-button" type="button" onClick={() => setActiveNav("reports")}>Unduh laporan <span>↓</span></button><button className="primary-button" type="button" onClick={() => setActiveNav("pos")}>Buka POS <span>→</span></button></>}{activeNav === "pos" && <span className="live-shift"><i className="live-dot" />Shift aktif · 09:42</span>}</div></div>{activeNav === "dashboard" ? <Dashboard onNavigate={setActiveNav} /> : activeNav === "pos" ? <POS cart={cart} search={search} setSearch={setSearch} addToCart={addToCart} updateQty={updateQty} cartTotal={cartTotal} paymentOpen={paymentOpen} setPaymentOpen={setPaymentOpen} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} onPayment={handlePayment} notice={notice} /> : <PlaceholderPage activeNav={activeNav} onNavigate={setActiveNav} />}</div></section></main>;
 }

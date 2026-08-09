@@ -29,16 +29,21 @@ test("server-renders the KantinKita workspace", async () => {
 });
 
 test("metadata and product UI replace the starter", async () => {
-  const [page, layout, packageJson, modules, demoData] = await Promise.all([
+  const [page, layout, packageJson, modules, demoData, authScreen] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/operational-modules.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/demo-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/auth-screen.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /Rasio penjualan/);
-  assert.match(page, /Continue|Lanjutkan dengan Google/);
+  assert.match(authScreen, /Lanjutkan dengan Google/);
+  assert.match(authScreen, /signInWithPassword/);
+  assert.match(authScreen, /requestPasswordReset/);
+  assert.match(page, /getOpenShift/);
+  assert.match(page, /handleLogout/);
   assert.match(layout, /KantinKita/);
   assert.doesNotMatch(layout, /Starter Project|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
