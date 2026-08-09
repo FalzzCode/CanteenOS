@@ -29,13 +29,14 @@ test("server-renders the KantinKita workspace", async () => {
 });
 
 test("metadata and product UI replace the starter", async () => {
-  const [page, layout, packageJson, modules, demoData, authScreen] = await Promise.all([
+  const [page, layout, packageJson, modules, demoData, authScreen, plan] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/operational-modules.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/demo-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/auth-screen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../docs/IMPLEMENTATION_PLAN.md", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /Rasio penjualan/);
@@ -44,6 +45,8 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(authScreen, /requestPasswordReset/);
   assert.match(page, /getOpenShift/);
   assert.match(page, /handleLogout/);
+  assert.match(plan, /Rasio penjualan/);
+  assert.match(plan, /Acceptance criteria MVP/);
   assert.match(layout, /KantinKita/);
   assert.doesNotMatch(layout, /Starter Project|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
@@ -66,6 +69,11 @@ test("KantinKita data contract keeps the proposal's critical controls", async ()
 
   assert.match(migration, /create table if not exists public\.profiles/i);
   assert.match(migration, /create table if not exists public\.outlet_memberships/i);
+  assert.match(migration, /create table if not exists public\.suppliers/i);
+  assert.match(migration, /create table if not exists public\.purchase_orders/i);
+  assert.match(migration, /create table if not exists public\.purchase_order_items/i);
+  assert.match(migration, /create table if not exists public\.expenses/i);
+  assert.match(migration, /create table if not exists public\.refund_requests/i);
   assert.match(migration, /create table if not exists public\.stock_movements/i);
   assert.match(migration, /alter table public\.sales enable row level security/i);
   assert.match(migration, /client_transaction_id text not null unique/i);
@@ -73,5 +81,7 @@ test("KantinKita data contract keeps the proposal's critical controls", async ()
   assert.match(migration, /grant execute on function public\.finalize_sale[\s\S]*to authenticated/i);
   assert.match(migration, /create or replace function private\.sales_mix/i);
   assert.match(migration, /grant execute on function public\.sales_mix[\s\S]*to authenticated/i);
+  assert.match(migration, /create policy refund_requests_manager_update/i);
+  assert.match(migration, /create policy expenses_manager_or_finance_update/i);
   assert.match(migration, /on conflict \(id\) do nothing/i);
 });
