@@ -41,3 +41,19 @@ test("metadata and product UI replace the starter", async () => {
   assert.doesNotMatch(layout, /Starter Project|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
+
+test("KantinKita data contract keeps the proposal's critical controls", async () => {
+  const migration = await readFile(
+    new URL("../supabase/migrations/20260809100000_kantinkita_mvp.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(migration, /create table if not exists public\.profiles/i);
+  assert.match(migration, /create table if not exists public\.outlet_memberships/i);
+  assert.match(migration, /create table if not exists public\.stock_movements/i);
+  assert.match(migration, /alter table public\.sales enable row level security/i);
+  assert.match(migration, /client_transaction_id text not null unique/i);
+  assert.match(migration, /create or replace function private\.finalize_sale/i);
+  assert.match(migration, /grant execute on function public\.finalize_sale[\s\S]*to authenticated/i);
+  assert.match(migration, /on conflict \(id\) do nothing/i);
+});

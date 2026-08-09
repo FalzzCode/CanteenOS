@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { finalizeSale } from "../lib/pos";
+
 type NavKey =
   | "dashboard"
   | "pos"
@@ -285,7 +287,7 @@ function POS({
   setPaymentOpen: (value: boolean) => void;
   paymentMethod: string;
   setPaymentMethod: (value: string) => void;
-  onPayment: () => void;
+  onPayment: () => void | Promise<void>;
   notice: string;
 }) {
   const [category, setCategory] = useState("Semua");
@@ -359,7 +361,22 @@ export default function Home() {
   };
 
   const updateQty = (id: number, delta: number) => setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: item.quantity + delta } : item).filter((item) => item.quantity > 0));
-  const handlePayment = () => { setPaymentOpen(false); setNotice(`Pembayaran ${paymentMethod} berhasil dicatat`); setCart([]); window.setTimeout(() => setNotice(""), 2800); };
+  const handlePayment = async () => {
+    const normalizedPaymentMethod = paymentMethod === "Tunai" ? "cash" : paymentMethod === "QRIS" ? "qris_manual" : "other";
+    const clientTransactionId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `demo-${Date.now()}`;
+    const result = await finalizeSale({
+      outletId: "demo",
+      shiftId: "demo",
+      clientTransactionId,
+      items: cart.map((item) => ({ productId: String(item.id), quantity: item.quantity })),
+      paymentMethod: normalizedPaymentMethod,
+      paymentAmount: cartTotal,
+    });
+    setPaymentOpen(false);
+    setNotice(result.mode === "demo" ? `Pembayaran ${paymentMethod} tersimpan di demo mode` : `Transaksi ${result.saleNo} berhasil dicatat`);
+    setCart([]);
+    window.setTimeout(() => setNotice(""), 2800);
+  };
 
   if (showLogin) return <LoginScreen onLogin={() => setShowLogin(false)} />;
 
