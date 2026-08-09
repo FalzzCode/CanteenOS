@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import {
   demoAuditLogs,
@@ -14,6 +14,8 @@ import {
   type DemoProduct,
   type DemoPurchase,
 } from "../lib/demo-data";
+import { getInventorySnapshot } from "../lib/supabase/inventory";
+import { getTransactions } from "../lib/supabase/transactions";
 
 export type ModuleKey = "transactions" | "products" | "inventory" | "purchasing" | "cash" | "reports" | "admin";
 export type KantinNavKey = "dashboard" | "pos" | ModuleKey;
@@ -45,18 +47,30 @@ function ModuleNotice({ children }: { children: string }) {
   return <div className="module-notice" role="status"><span>i</span>{children}</div>;
 }
 
-function TransactionsModule() {
+function TransactionsModule({ outletId }: { outletId: string }) {
+  const [rows, setRows] = useState(demoTransactions);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [selectedId, setSelectedId] = useState(demoTransactions[0]?.id ?? "");
   const [notice, setNotice] = useState("");
-  const visibleRows = useMemo(() => demoTransactions.filter((transaction) => {
+  useEffect(() => {
+    if (outletId === "demo") return;
+    let cancelled = false;
+    getTransactions(outletId).then((liveRows) => {
+      if (!cancelled && liveRows) setRows(liveRows);
+    }).catch(() => {
+      // Keep the demo transaction list if the live query is unavailable.
+    });
+    return () => { cancelled = true; };
+  }, [outletId]);
+
+  const visibleRows = useMemo(() => rows.filter((transaction) => {
     const matchesQuery = `${transaction.id} ${transaction.cashier} ${transaction.payment}`.toLowerCase().includes(query.toLowerCase());
     const matchesStatus = status === "all" || transaction.status === status;
     return matchesQuery && matchesStatus;
-  }), [query, status]);
+  }), [query, rows, status]);
   const selected = visibleRows.find((transaction) => transaction.id === selectedId) ?? visibleRows[0];
-  const completedTotal = demoTransactions.filter((transaction) => transaction.status === "paid").reduce((sum, transaction) => sum + transaction.total, 0);
+  const completedTotal = rows.filter((transaction) => transaction.status === "paid").reduce((sum, transaction) => sum + transaction.total, 0);
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -162,17 +176,31 @@ function ProductsModule() {
   );
 }
 
-function InventoryModule() {
+function InventoryModule({ outletId }: { outletId: string }) {
   const [rows, setRows] = useState<DemoInventoryItem[]>(demoInventoryRows);
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState("");
   const lowStockCount = rows.filter((item) => item.qty <= item.min).length;
   const visibleRows = rows.filter((item) => filter === "all" || item.qty <= item.min);
+  useEffect(() => {
+    if (outletId === "demo") return;
+    let cancelled = false;
+    getInventorySnapshot(outletId).then((liveRows) => {
+      if (!cancelled && liveRows) setRows(liveRows);
+    }).catch(() => {
+      // Keep the demo inventory list if the live query is unavailable.
+    });
+    return () => { cancelled = true; };
+  }, [outletId]);
   const showNotice = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2600);
   };
   const receiveStock = (id: string) => {
+    if (outletId !== "demo") {
+      showNotice("Snapshot stok live aktif. Gunakan RPC receiving setelah server-side adjustment disiapkan.");
+      return;
+    }
     setRows((current) => current.map((item) => item.id === id ? { ...item, qty: item.qty + 10, movement: "Adjustment baru saja dicatat" } : item));
     showNotice("Adjustment stok +10 berhasil dicatat di demo mode.");
   };
@@ -276,11 +304,11 @@ function AdminModule() {
   );
 }
 
-export function OperationsModule({ activeNav }: { activeNav: ModuleKey }) {
+export function OperationsModule({ activeNav, outletId = "demo" }: { activeNav: ModuleKey; outletId?: string }) {
   switch (activeNav) {
-    case "transactions": return <TransactionsModule />;
+    case "transactions": return <TransactionsModule outletId={outletId} />;
     case "products": return <ProductsModule />;
-    case "inventory": return <InventoryModule />;
+    case "inventory": return <InventoryModule outletId={outletId} />;
     case "purchasing": return <PurchasingModule />;
     case "cash": return <CashModule />;
     case "reports": return <ReportsModule />;

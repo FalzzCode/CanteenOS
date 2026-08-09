@@ -47,6 +47,7 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(page, /getOpenShift/);
   assert.match(page, /getCatalog/);
   assert.match(page, /getDashboardSummary/);
+  assert.match(page, /outletId={activeOutletId}/);
   assert.match(page, /catalog={catalog}/);
   assert.match(page, /handleLogout/);
   assert.match(plan, /Rasio penjualan/);
@@ -64,6 +65,8 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(modules, /CashModule/);
   assert.match(modules, /ReportsModule/);
   assert.match(modules, /AdminModule/);
+  assert.match(modules, /getTransactions/);
+  assert.match(modules, /getInventorySnapshot/);
   assert.match(demoData, /demoSalesMix/);
 });
 
