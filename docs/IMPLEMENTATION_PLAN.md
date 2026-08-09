@@ -77,6 +77,10 @@ Migration yang harus diterapkan hanya pada project Supabase khusus KantinKita:
 
 `supabase/migrations/20260809100000_kantinkita_mvp.sql`
 
+Setelah migration, seed data awal yang aman untuk outlet demo tersedia di:
+
+`supabase/seed.sql`
+
 ## Acceptance criteria MVP
 
 - User pending tidak dapat masuk workspace operasional.
