@@ -813,3 +813,64 @@ $$;
 
 revoke all on function public.dashboard_summary(uuid, timestamptz, timestamptz) from public;
 grant execute on function public.dashboard_summary(uuid, timestamptz, timestamptz) to authenticated;
+
+create or replace function private.adjust_inventory(
+  p_outlet_id uuid,
+  p_inventory_item_id uuid,
+  p_qty_delta numeric,
+  p_reason text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  v_item public.inventory_items%rowtype;
+begin
+  if not private.is_active_user() then raise exception 'active profile required'; end if;
+  if not private.has_any_role(array['super_admin', 'manager', 'stock']::public.app_role[]) then raise exception 'inventory adjustment permission denied'; end if;
+  if not private.can_access_outlet(p_outlet_id) then raise exception 'outlet permission denied'; end if;
+  if p_qty_delta is null or p_qty_delta = 0 then raise exception 'quantity delta cannot be zero'; end if;
+  if coalesce(nullif(trim(p_reason), ''), '') = '' then raise exception 'adjustment reason required'; end if;
+
+  update public.inventory_items
+  set qty_on_hand = qty_on_hand + p_qty_delta,
+      updated_at = now()
+  where id = p_inventory_item_id
+    and outlet_id = p_outlet_id
+    and active
+    and qty_on_hand + p_qty_delta >= 0
+  returning * into v_item;
+
+  if not found then raise exception 'inventory item unavailable or stock would become negative'; end if;
+
+  insert into public.stock_movements (inventory_item_id, outlet_id, type, qty_delta, unit_cost, reference_type, reason, created_by)
+  values (v_item.id, p_outlet_id, 'adjustment', p_qty_delta, v_item.avg_cost, 'manual_adjustment', p_reason, (select auth.uid()));
+
+  insert into public.audit_logs (actor_id, action, entity_type, entity_id, after_json)
+  values ((select auth.uid()), 'inventory.adjusted', 'inventory_item', v_item.id, jsonb_build_object('qty_delta', p_qty_delta, 'qty_on_hand', v_item.qty_on_hand, 'reason', p_reason));
+
+  return jsonb_build_object('inventory_item_id', v_item.id, 'qty_on_hand', v_item.qty_on_hand);
+end;
+$$;
+
+revoke all on function private.adjust_inventory(uuid, uuid, numeric, text) from public;
+grant execute on function private.adjust_inventory(uuid, uuid, numeric, text) to authenticated;
+
+create or replace function public.adjust_inventory(
+  p_outlet_id uuid,
+  p_inventory_item_id uuid,
+  p_qty_delta numeric,
+  p_reason text
+)
+returns jsonb
+language sql
+security invoker
+set search_path = public, private, pg_temp
+as $$
+  select private.adjust_inventory($1, $2, $3, $4);
+$$;
+
+revoke all on function public.adjust_inventory(uuid, uuid, numeric, text) from public;
+grant execute on function public.adjust_inventory(uuid, uuid, numeric, text) to authenticated;

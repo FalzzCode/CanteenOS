@@ -67,6 +67,7 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(modules, /AdminModule/);
   assert.match(modules, /getTransactions/);
   assert.match(modules, /getInventorySnapshot/);
+  assert.match(modules, /adjustInventory/);
   assert.match(demoData, /demoSalesMix/);
 });
 
@@ -94,5 +95,7 @@ test("KantinKita data contract keeps the proposal's critical controls", async ()
   assert.match(migration, /grant execute on function public\.dashboard_summary[\s\S]*to authenticated/i);
   assert.match(migration, /create policy refund_requests_manager_update/i);
   assert.match(migration, /create policy expenses_manager_or_finance_update/i);
+  assert.match(migration, /create or replace function private\.adjust_inventory/i);
+  assert.match(migration, /grant execute on function public\.adjust_inventory[\s\S]*to authenticated/i);
   assert.match(migration, /on conflict \(id\) do nothing/i);
 });

@@ -33,3 +33,23 @@ export async function getInventorySnapshot(outletId: string): Promise<DemoInvent
     movement: "Snapshot live",
   }));
 }
+
+export async function adjustInventory(
+  outletId: string,
+  inventoryItemId: string,
+  qtyDelta: number,
+  reason: string,
+): Promise<{ qtyOnHand: number } | null> {
+  if (!supabase || !outletId || !inventoryItemId) return null;
+
+  const { data, error } = await supabase.rpc("adjust_inventory", {
+    p_outlet_id: outletId,
+    p_inventory_item_id: inventoryItemId,
+    p_qty_delta: qtyDelta,
+    p_reason: reason,
+  });
+
+  if (error) throw error;
+  const result = (data ?? {}) as { qty_on_hand?: number | string };
+  return { qtyOnHand: Number(result.qty_on_hand ?? 0) };
+}

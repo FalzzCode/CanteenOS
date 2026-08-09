@@ -14,7 +14,7 @@ import {
   type DemoProduct,
   type DemoPurchase,
 } from "../lib/demo-data";
-import { getInventorySnapshot } from "../lib/supabase/inventory";
+import { adjustInventory, getInventorySnapshot } from "../lib/supabase/inventory";
 import { getTransactions } from "../lib/supabase/transactions";
 
 export type ModuleKey = "transactions" | "products" | "inventory" | "purchasing" | "cash" | "reports" | "admin";
@@ -180,6 +180,7 @@ function InventoryModule({ outletId }: { outletId: string }) {
   const [rows, setRows] = useState<DemoInventoryItem[]>(demoInventoryRows);
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState("");
+  const [adjustmentBusy, setAdjustmentBusy] = useState<string | null>(null);
   const lowStockCount = rows.filter((item) => item.qty <= item.min).length;
   const visibleRows = rows.filter((item) => filter === "all" || item.qty <= item.min);
   useEffect(() => {
@@ -196,9 +197,18 @@ function InventoryModule({ outletId }: { outletId: string }) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2600);
   };
-  const receiveStock = (id: string) => {
+  const receiveStock = async (id: string) => {
     if (outletId !== "demo") {
-      showNotice("Snapshot stok live aktif. Gunakan RPC receiving setelah server-side adjustment disiapkan.");
+      setAdjustmentBusy(id);
+      try {
+        const result = await adjustInventory(outletId, id, 10, "Restock cepat dari inventory workspace");
+        if (result) setRows((current) => current.map((item) => item.id === id ? { ...item, qty: result.qtyOnHand, movement: "Adjustment live baru saja dicatat" } : item));
+        showNotice("Adjustment stok live berhasil dicatat dan diaudit.");
+      } catch (adjustmentError) {
+        showNotice(adjustmentError instanceof Error ? adjustmentError.message : "Adjustment stok gagal.");
+      } finally {
+        setAdjustmentBusy(null);
+      }
       return;
     }
     setRows((current) => current.map((item) => item.id === id ? { ...item, qty: item.qty + 10, movement: "Adjustment baru saja dicatat" } : item));
@@ -208,7 +218,7 @@ function InventoryModule({ outletId }: { outletId: string }) {
   return (
     <div className="module-stack">
       <section className="module-stat-grid"><ModuleStat label="Nilai persediaan" value="Rp 8,42 jt" detail="Estimasi harga pokok" tone="module-stat-teal" /><ModuleStat label="Stok menipis" value={`${lowStockCount} item`} detail="Di bawah minimum" tone="module-stat-gold" /><ModuleStat label="Pergerakan hari ini" value="28 movement" detail="Masuk dan keluar" tone="module-stat-sky" /></section>
-      <section className="card module-card"><div className="module-toolbar"><div><span className="section-kicker">Kontrol persediaan</span><h2>Stok outlet utama</h2></div><div className="toolbar-spacer" /><select className="module-select" aria-label="Filter persediaan" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Semua item</option><option value="low">Stok menipis</option></select><button className="primary-button" type="button" onClick={() => showNotice("Mode opname demo dibuka untuk outlet utama.")}>Mulai opname</button></div><div className="table-scroll"><table className="module-table"><thead><tr><th>Item persediaan</th><th>Stok tersedia</th><th>Minimum</th><th>Supplier</th><th>Movement terakhir</th><th /></tr></thead><tbody>{visibleRows.map((item) => { const isLow = item.qty <= item.min; return <tr key={item.id}><td><div className="table-product"><span className={`inventory-icon ${isLow ? "low" : ""}`}>INV</span><span><strong>{item.name}</strong><small>{item.sku} · per {item.unit}</small></span></div></td><td><span className={isLow ? "stock-level low" : "stock-level"}>{item.qty} {item.unit}</span></td><td>{item.min} {item.unit}</td><td>{item.supplier}</td><td>{item.movement}</td><td><button className="row-action" type="button" onClick={() => receiveStock(item.id)}>+10 stok</button></td></tr>; })}</tbody></table>{!visibleRows.length && <div className="module-empty">Tidak ada item pada filter ini.</div>}</div></section>
+      <section className="card module-card"><div className="module-toolbar"><div><span className="section-kicker">Kontrol persediaan</span><h2>Stok outlet utama</h2></div><div className="toolbar-spacer" /><select className="module-select" aria-label="Filter persediaan" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Semua item</option><option value="low">Stok menipis</option></select><button className="primary-button" type="button" onClick={() => showNotice("Mode opname demo dibuka untuk outlet utama.")}>Mulai opname</button></div><div className="table-scroll"><table className="module-table"><thead><tr><th>Item persediaan</th><th>Stok tersedia</th><th>Minimum</th><th>Supplier</th><th>Movement terakhir</th><th /></tr></thead><tbody>{visibleRows.map((item) => { const isLow = item.qty <= item.min; return <tr key={item.id}><td><div className="table-product"><span className={`inventory-icon ${isLow ? "low" : ""}`}>INV</span><span><strong>{item.name}</strong><small>{item.sku} · per {item.unit}</small></span></div></td><td><span className={isLow ? "stock-level low" : "stock-level"}>{item.qty} {item.unit}</span></td><td>{item.min} {item.unit}</td><td>{item.supplier}</td><td>{item.movement}</td><td><button className="row-action" type="button" onClick={() => receiveStock(item.id)} disabled={adjustmentBusy === item.id}>{adjustmentBusy === item.id ? "Menyimpan..." : "+10 stok"}</button></td></tr>; })}</tbody></table>{!visibleRows.length && <div className="module-empty">Tidak ada item pada filter ini.</div>}</div></section>
       <section className="module-grid-two"><article className="card module-card"><span className="section-kicker">Alur stok</span><h2>Movement terbaru</h2><div className="timeline-list"><div><span className="timeline-dot teal-dot" /><span><strong>Masuk · Beras premium</strong><small>+24 kg · CV Pangan Jaya · 2 jam lalu</small></span></div><div><span className="timeline-dot gold-dot" /><span><strong>Keluar · Telur ayam</strong><small>-12 butir · Transaksi #INV-240816</small></span></div><div><span className="timeline-dot gray-dot" /><span><strong>Adjustment · Teh celup</strong><small>Opname · Ayu Nuraini · kemarin</small></span></div></div></article><article className="card module-card reorder-card"><span className="section-kicker">Rekomendasi</span><h2>Siap reorder</h2><strong className="reorder-number">{lowStockCount} item</strong><p>Gabungkan item stok menipis ke pembelian baru agar biaya supplier lebih mudah dilacak.</p><button className="secondary-button" type="button" onClick={() => showNotice("Draft reorder dibuat dari item stok menipis.")}>Buat draft pembelian <span>→</span></button></article></section>
       {notice && <ModuleNotice>{notice}</ModuleNotice>}
     </div>
