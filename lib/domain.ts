@@ -6,6 +6,8 @@ export type AppRole =
   | "finance"
   | "viewer";
 
+export type AccountRole = "admin" | "customer";
+
 export type ProfileStatus = "pending" | "active" | "inactive" | "suspended";
 
 export type PaymentMethod = "cash" | "qris_manual" | "other";
@@ -25,6 +27,7 @@ export interface ProductRecord {
   name: string;
   sku: string;
   barcode?: string | null;
+  imageUrl?: string | null;
   sellPrice: number;
   costReference: number;
   stock: number;
@@ -61,8 +64,12 @@ export interface FinalizeSaleResult {
 export interface ProfileRecord {
   id: string;
   fullName: string;
+  avatarUrl?: string | null;
   role: AppRole;
+  accountRole: AccountRole;
   status: ProfileStatus;
+  employeeCode?: string | null;
+  adminApprovedAt?: string | null;
   defaultOutletId?: string | null;
 }
 

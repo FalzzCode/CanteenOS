@@ -597,7 +597,6 @@ security definer
 set search_path = public, private, pg_temp
 as $$
 declare
-  v_shift public.shifts%rowtype;
   v_product public.products%rowtype;
   v_sale public.sales%rowtype;
   v_line record;
@@ -615,7 +614,7 @@ begin
     return jsonb_build_object('sale_id', v_sale.id, 'sale_no', v_sale.sale_no, 'total', v_sale.total);
   end if;
 
-  select * into v_shift
+  perform 1
   from public.shifts
   where id = p_shift_id and outlet_id = p_outlet_id and cashier_id = (select auth.uid()) and status = 'open'
   for update;

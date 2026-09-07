@@ -2,8 +2,8 @@
 -- Run only after 20260809100000_kantinkita_mvp.sql on a dedicated project.
 -- This file does not create auth users or grant roles.
 
-insert into public.outlets (code, name, location, active)
-values ('UTAMA', 'Outlet Utama', 'Area kantin sekolah', true)
+insert into public.outlets (id, code, name, location, active)
+values ('11111111-1111-4111-8111-111111111111', 'UTAMA', 'Outlet Utama', 'Area kantin sekolah', true)
 on conflict (code) do update
 set name = excluded.name, location = excluded.location, active = excluded.active;
 

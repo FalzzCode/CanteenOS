@@ -6,10 +6,10 @@ export type DemoSalesMixItem = {
 };
 
 export const demoSalesMix: DemoSalesMixItem[] = [
-  { label: "Makanan", value: 42, amount: 2040000, color: "#0f6675" },
-  { label: "Minuman", value: 31, amount: 1510000, color: "#f1b653" },
-  { label: "Camilan", value: 17, amount: 826000, color: "#e58c6d" },
-  { label: "Lainnya", value: 10, amount: 486000, color: "#777d9a" },
+  { label: "Makanan", value: 42, amount: 2040000, color: "var(--ui-chart-1)" },
+  { label: "Minuman", value: 31, amount: 1510000, color: "var(--ui-chart-2)" },
+  { label: "Camilan", value: 17, amount: 826000, color: "var(--ui-chart-3)" },
+  { label: "Lainnya", value: 10, amount: 486000, color: "var(--ui-chart-4)" },
 ];
 
 export type DemoTransaction = {
@@ -17,18 +17,19 @@ export type DemoTransaction = {
   time: string;
   cashier: string;
   items: number;
+  itemNames?: string[];
   payment: "QRIS" | "Tunai" | "Lainnya";
   total: number;
   status: "paid" | "review" | "voided";
 };
 
 export const demoTransactions: DemoTransaction[] = [
-  { id: "#INV-240816", time: "Hari ini, 14:32", cashier: "Ayu Nuraini", items: 4, payment: "QRIS", total: 56000, status: "paid" },
-  { id: "#INV-240815", time: "Hari ini, 14:29", cashier: "Dimas Pratama", items: 2, payment: "Tunai", total: 19000, status: "paid" },
-  { id: "#INV-240814", time: "Hari ini, 14:24", cashier: "Ayu Nuraini", items: 6, payment: "Tunai", total: 82000, status: "review" },
-  { id: "#INV-240813", time: "Hari ini, 14:17", cashier: "Dimas Pratama", items: 3, payment: "QRIS", total: 37000, status: "paid" },
-  { id: "#INV-240812", time: "Hari ini, 14:10", cashier: "Ayu Nuraini", items: 5, payment: "Tunai", total: 64000, status: "paid" },
-  { id: "#INV-240811", time: "Hari ini, 13:58", cashier: "Dimas Pratama", items: 1, payment: "Lainnya", total: 15000, status: "voided" },
+  { id: "#INV-240816", time: "Hari ini, 14:32", cashier: "Ayu Nuraini", items: 4, itemNames: ["Nasi Goreng Spesial", "Es Teh Manis", "Roti Bakar Coklat", "Air Mineral 600ml"], payment: "QRIS", total: 56000, status: "paid" },
+  { id: "#INV-240815", time: "Hari ini, 14:29", cashier: "Dimas Pratama", items: 2, itemNames: ["Es Teh Manis", "Roti Bakar Coklat"], payment: "Tunai", total: 19000, status: "paid" },
+  { id: "#INV-240814", time: "Hari ini, 14:24", cashier: "Ayu Nuraini", items: 6, itemNames: ["Nasi Goreng Spesial", "Mie Goreng Telur", "Pisang Keju", "Es Teh Manis", "Air Mineral 600ml", "Roti Bakar Coklat"], payment: "Tunai", total: 82000, status: "review" },
+  { id: "#INV-240813", time: "Hari ini, 14:17", cashier: "Dimas Pratama", items: 3, itemNames: ["Mie Goreng Telur", "Es Teh Manis", "Pisang Keju"], payment: "QRIS", total: 37000, status: "paid" },
+  { id: "#INV-240812", time: "Hari ini, 14:10", cashier: "Ayu Nuraini", items: 5, itemNames: ["Nasi Goreng Spesial", "Es Teh Manis", "Roti Bakar Coklat", "Pisang Keju", "Air Mineral 600ml"], payment: "Tunai", total: 64000, status: "paid" },
+  { id: "#INV-240811", time: "Hari ini, 13:58", cashier: "Dimas Pratama", items: 1, itemNames: ["Nasi Goreng Spesial"], payment: "Lainnya", total: 15000, status: "voided" },
 ];
 
 export type DemoProduct = {

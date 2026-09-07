@@ -2,10 +2,10 @@ import type { DemoSalesMixItem } from "../demo-data";
 import { supabase } from "./client";
 
 const categoryColors: Record<string, string> = {
-  Makanan: "#0f6675",
-  Minuman: "#f1b653",
-  Camilan: "#e58c6d",
-  Lainnya: "#777d9a",
+  Makanan: "var(--ui-chart-1)",
+  Minuman: "var(--ui-chart-2)",
+  Camilan: "var(--ui-chart-3)",
+  Lainnya: "var(--ui-chart-4)",
 };
 
 type SalesMixRow = {

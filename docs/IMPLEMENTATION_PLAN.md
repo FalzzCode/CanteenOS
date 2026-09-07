@@ -39,6 +39,17 @@ Harga pokok diambil dari snapshot saat transaksi, bukan harga master terbaru.
 
 ## Role dan batas akses
 
+KantinKita memakai dua lapisan role:
+
+| Lapisan | Nilai | Fungsi |
+| --- | --- | --- |
+| Account role | `admin` / `customer` | Memisahkan portal operasional sekolah dari portal pelanggan. |
+| Operational role | `super_admin`, `manager`, `cashier`, `stock`, `finance`, `viewer` | Menentukan izin di dalam workspace admin. |
+
+Admin tidak dapat mendaftar sendiri. Login admin hanya diterima bila email sudah terverifikasi, profile berstatus `active`, `employee_code` terisi, `default_outlet_id` tersedia, dan `admin_approved_at` sudah diisi oleh administrator. Role operasional tetap disimpan di `profiles.role` dan seluruh akses bisnis dilindungi RLS.
+
+Pendaftaran mandiri selalu membuat `account_role = 'customer'`, walaupun browser mengirim metadata role lain. Customer hanya membaca outlet, kategori aktif, dan produk aktif; POS, shift, stok, laporan, approval, dan administrasi tidak tersedia di portal customer.
+
 | Role | Akses utama |
 | --- | --- |
 | Super admin | Semua outlet dan konfigurasi global |
@@ -57,6 +68,7 @@ Semua tabel bisnis memakai RLS. Authorization berasal dari profile/membership ya
 - [x] Demo workflows untuk transaksi, produk, inventori, pembelian, shift/kas, laporan, dan administrasi.
 - [x] Supabase Auth client, session gate, open-shift lookup, RLS, atomic POS RPC, dan sales-mix RPC.
 - [x] Data contract supplier, purchase order, expenses, refund request, dan policy role.
+- [x] Account role `admin/customer`, admin access gate, customer signup, dan portal pelanggan.
 - [x] Lint, production build, rendered UI test, dan migration contract test.
 - [ ] Buat/Hubungkan project Supabase khusus KantinKita.
 - [ ] Apply migration dan seed outlet, kategori, user manager, serta membership pertama.
@@ -73,9 +85,11 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 VITE_DEFAULT_OUTLET_ID=<outlet-uuid>
 ```
 
-Migration yang harus diterapkan hanya pada project Supabase khusus KantinKita:
+Migration yang harus diterapkan hanya pada project Supabase khusus KantinKita, berurutan:
 
 `supabase/migrations/20260809100000_kantinkita_mvp.sql`
+
+`supabase/migrations/20260809140000_account_roles.sql`
 
 Setelah migration, seed data awal yang aman untuk outlet demo tersedia di:
 
@@ -84,6 +98,9 @@ Setelah migration, seed data awal yang aman untuk outlet demo tersedia di:
 ## Acceptance criteria MVP
 
 - User pending tidak dapat masuk workspace operasional.
+- Admin tanpa email terverifikasi, employee code, outlet default, status aktif, atau approval tidak dapat masuk workspace.
+- Self-registration selalu menghasilkan customer dan tidak dapat menaikkan privilege lewat metadata browser.
+- Customer tidak dapat melihat navigasi atau data workspace operasional admin.
 - Cashier hanya dapat menjual pada outlet membership dan shift miliknya yang sedang open.
 - Harga dan total transaksi dihitung server-side; request yang sama tidak menggandakan transaksi.
 - Penjualan mengurangi stok secara atomic dan gagal jika stok tidak cukup.
