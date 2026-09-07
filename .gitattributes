@@ -1,3 +1,4 @@
 # Keep runtime styles tracked and syntax-highlighted, but keep the repository
-# language indicator focused on the TypeScript application logic.
-app/*.css linguist-detectable=false
+# language indicator focused on the TypeScript application logic. This is a
+# reporting-only override; it does not change how the app loads CSS.
+app/*.css linguist-vendored
