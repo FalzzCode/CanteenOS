@@ -29,10 +29,11 @@ test("server-renders the authenticated CanteenOS entrypoint", async () => {
 });
 
 test("metadata and product UI replace the starter", async () => {
-  const [page, layout, systemUi, packageJson, modules, demoData, authScreen, auth, domain, catalog, plan, seed, customerPortal, googleAuthMigration] = await Promise.all([
+  const [page, layout, systemUi, uiReset, packageJson, modules, demoData, authScreen, auth, domain, catalog, plan, seed, customerPortal, googleAuthMigration] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/system-ui.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/ui-reset.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/operational-modules.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/demo-data.ts", import.meta.url), "utf8"),
@@ -79,15 +80,15 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(customerPortal, /customer-app-order-tab/);
   assert.match(customerPortal, /Menu tidak ditemukan/);
   assert.match(customerPortal, /Pemesanan online belum aktif/);
-  assert.match(systemUi, /\.customer-mobile-cart-bar/);
-  assert.match(systemUi, /\.customer-empty-menu/);
+  assert.match(uiReset, /\.customer-app-home-cart-bar/);
+  assert.match(uiReset, /\.customer-portal\.customer-app \.customer-app-empty-state/);
   assert.match(page, /readDemoShiftOpenedAt/);
   assert.match(page, /visibilitychange/);
   assert.match(page, /Asia\/Jakarta/);
   assert.match(page, /formatBandungTime/);
   assert.match(page, /formatBandungTime\(lastUpdatedAt\)\} WIB/);
   assert.match(page, /hourCycle: "h23"/);
-  assert.match(systemUi, /payment-methods-page \.payment-method > span:nth-child\(2\)/);
+  assert.match(uiReset, /\.customer-portal\.customer-app \.customer-app-payment-methods/);
   assert.match(systemUi, /\.module-search input:focus-visible\s*\{[\s\S]*?outline:\s*none[\s\S]*?box-shadow:\s*none/);
   assert.match(systemUi, /\.module-search:focus-within\s*\{[\s\S]*?border-color:\s*var\(--ui-border\)[\s\S]*?box-shadow:\s*none/);
   assert.match(systemUi, /html\[data-theme="dark"\] \.module-search:focus-within\s*\{[\s\S]*?box-shadow:\s*none/);
@@ -130,7 +131,7 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(systemUi, /\.page-context-outlet > \.ui-icon\s*\{[\s\S]*?display:\s*none/);
   assert.match(systemUi, /Cash movement is a dense information card;[\s\S]*?\.cash-layout > \.module-card:nth-child\(2\)[\s\S]*?border-radius:\s*16px/);
   assert.match(systemUi, /skeleton-block/);
-  assert.match(systemUi, /skeleton-product-grid/);
+  assert.match(uiReset, /customer-skeleton-product-grid/);
   assert.match(systemUi, /skeleton-report-grid/);
   assert.match(systemUi, /skeleton-table-transactions/);
   assert.doesNotMatch(page, /ThemeToggle|onThemeChange|theme-toggle|kantinkita-theme/);
@@ -169,9 +170,9 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(customerPortal, /Pesan lagi tanpa cari ulang/);
   assert.match(customerPortal, /Simpan .* ke favorit/);
   assert.match(customerPortal, /Detail menu/);
-  assert.match(systemUi, /\.customer-active-order/);
+  assert.match(uiReset, /\.customer-portal\.customer-app \.customer-app-active-order/);
   assert.match(systemUi, /\.customer-detail-sheet/);
-  assert.match(systemUi, /\.customer-history-section/);
+  assert.match(uiReset, /\.customer-portal\.customer-app \.customer-app-history-panel/);
   assert.match(plan, /Rasio penjualan/);
   assert.match(plan, /Acceptance criteria MVP/);
   assert.match(seed, /Outlet Utama/);
