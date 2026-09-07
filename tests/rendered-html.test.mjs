@@ -97,7 +97,8 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(page, /mobile-menu-button[\s\S]*mobile-brand/);
   assert.match(page, /mobile-menu-brand/);
   assert.match(page, /mobile-menu" aria-label="Menu navigasi mobile" initial=\{\{ opacity: 0, x: -24 \}\}/);
-  assert.doesNotMatch(page, /admin-parallax|adminIsScrolled/);
+assert.doesNotMatch(page, /admin-parallax|adminIsScrolled/);
+assert.doesNotMatch(uiReset, /topbar gains a quiet scrolled state|\.app-shell \.topbar \{\s*transition:/);
   assert.match(layout, /system-ui\.css/);
   assert.match(layout, /data-theme="light"/);
   assert.doesNotMatch(layout, /kantinkita-theme/);

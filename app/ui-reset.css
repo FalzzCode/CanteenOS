@@ -19528,16 +19528,9 @@ html[data-theme] .customer-portal.customer-app .customer-app-home-outlet-action 
   }
 }
 
-/* Role motion: admin keeps native scroll predictable, then adds useful
+/* Role motion: admin keeps native scroll predictable and only retains useful
  * workspace affordances around it. The filter/action bar stays available on
- * long operational pages, while the topbar gains a quiet scrolled state. */
-html[data-theme] .app-shell .topbar {
-  transition: background-color .24s ease, border-color .24s ease, box-shadow .24s ease;
-}
-
-html[data-theme] .app-shell .module-card > .module-toolbar {
-  transition: background-color .24s ease, border-color .24s ease, box-shadow .24s ease;
-}
+ * long operational pages without adding a scroll-bound visual effect. */
 
 @media (min-width: 901px) {
   html[data-theme] .app-shell {
