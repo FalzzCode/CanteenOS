@@ -97,6 +97,7 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(page, /mobile-menu-button[\s\S]*mobile-brand/);
   assert.match(page, /mobile-menu-brand/);
   assert.match(page, /mobile-menu" aria-label="Menu navigasi mobile" initial=\{\{ opacity: 0, x: -24 \}\}/);
+  assert.doesNotMatch(page, /admin-parallax|adminIsScrolled/);
   assert.match(layout, /system-ui\.css/);
   assert.match(layout, /data-theme="light"/);
   assert.doesNotMatch(layout, /kantinkita-theme/);
@@ -134,6 +135,9 @@ test("metadata and product UI replace the starter", async () => {
   assert.match(uiReset, /customer-skeleton-product-grid/);
   assert.match(systemUi, /skeleton-report-grid/);
   assert.match(systemUi, /skeleton-table-transactions/);
+assert.match(uiReset, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar-brand \{\s*display: grid;\s*grid-template-columns: 36px minmax\(0, 1fr\) 30px/);
+  assert.match(uiReset, /Admin performance guard/);
+  assert.match(uiReset, /\.app-shell \.page-motion-skeleton/);
   assert.doesNotMatch(page, /ThemeToggle|onThemeChange|theme-toggle|kantinkita-theme/);
   assert.doesNotMatch(authScreen, /ThemeToggle|onThemeChange|theme-toggle|kantinkita-theme/);
   assert.match(authScreen, /Lanjutkan dengan Google/);

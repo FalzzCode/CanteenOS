@@ -1008,7 +1008,6 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [routeProgress, setRouteProgress] = useState(false);
   const [routeLoading, setRouteLoading] = useState(false);
-  const [adminIsScrolled, setAdminIsScrolled] = useState(false);
   const [adminScrollTopVisible, setAdminScrollTopVisible] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [preferencesReady, setPreferencesReady] = useState(false);
@@ -1043,55 +1042,14 @@ export default function Home() {
     if (!shell) return;
 
     const syncAdminScrollState = () => {
-      const scrollTop = window.scrollY;
-      setAdminIsScrolled(scrollTop > 10);
-      setAdminScrollTopVisible(scrollTop > 420);
+      const shouldShowScrollTop = window.scrollY > 420;
+      setAdminScrollTopVisible((current) => current === shouldShowScrollTop ? current : shouldShowScrollTop);
     };
 
     syncAdminScrollState();
     window.addEventListener("scroll", syncAdminScrollState, { passive: true });
     return () => window.removeEventListener("scroll", syncAdminScrollState);
   }, [authReady, sessionProfile?.accountRole, showLogin]);
-
-  useEffect(() => {
-    const shell = adminShellRef.current;
-    if (!shell) return;
-
-    const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const compactQuery = window.matchMedia("(max-width: 900px)");
-    let frame = 0;
-
-    const resetParallax = () => {
-      shell.style.setProperty("--admin-parallax-x", "0px");
-      shell.style.setProperty("--admin-parallax-y", "0px");
-    };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      if (reduceMotionQuery.matches || compactQuery.matches || (event.pointerType && event.pointerType !== "mouse")) return;
-
-      const x = event.clientX / Math.max(window.innerWidth, 1) - .5;
-      const y = event.clientY / Math.max(window.innerHeight, 1) - .5;
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        shell.style.setProperty("--admin-parallax-x", `${(x * 12).toFixed(2)}px`);
-        shell.style.setProperty("--admin-parallax-y", `${(y * 8).toFixed(2)}px`);
-      });
-    };
-
-    const handleResize = () => {
-      if (compactQuery.matches || reduceMotionQuery.matches) resetParallax();
-    };
-
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    window.addEventListener("resize", handleResize, { passive: true });
-    window.addEventListener("blur", resetParallax);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("blur", resetParallax);
-    };
-  }, []);
 
   useEffect(() => {
     if (isSupabaseConfigured) return;
@@ -1413,7 +1371,7 @@ export default function Home() {
   const closeOutletMenu = () => setOutletMenuOpen(false);
 
   return (
-    <main ref={adminShellRef} className={`${sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}${routeLoading ? " is-route-loading" : ""}${adminIsScrolled ? " is-scrolled" : ""}`} aria-busy={routeLoading}>
+    <main ref={adminShellRef} className={`${sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}${routeLoading ? " is-route-loading" : ""}`} aria-busy={routeLoading}>
       <aside className={`sidebar${routeLoading ? " is-route-loading" : " is-route-ready"}`}>
         <div className="sidebar-brand"><span className="brand-mark"><CanteenOSMark size={42} /></span><span className="sidebar-brand-copy"><strong>Canteen<span>OS</span></strong><small>Digital School Canteen</small></span><button className="sidebar-collapse" type="button" aria-label={sidebarCollapsed ? "Perluas navigasi" : "Ciutkan navigasi"} aria-pressed={sidebarCollapsed} onClick={() => setSidebarCollapsed((current) => !current)}><UiIcon name={sidebarCollapsed ? "arrowRight" : "arrowLeft"} size={15} /></button></div>
         <div className="sidebar-profile"><div className="sidebar-profile-avatar-wrap"><ProfileAvatar profile={displayProfile} className="profile-avatar" /><span className="online-indicator" /></div><div><strong>{displayProfile.fullName}</strong><span>{displayRole}</span></div><span className="profile-menu">•••</span></div>
@@ -1421,7 +1379,7 @@ export default function Home() {
         <div className="sidebar-bottom"><div className="support-card"><span className="support-icon"><UiIcon name="info" size={18} /></span><strong>Butuh bantuan?</strong><span>Pelajari alur manajemen dan SOP operasional.</span><button type="button" onClick={() => setHelpOpen(true)}>Buka panduan <UiIcon name="arrowRight" size={15} /></button></div><button type="button" className="logout-button" onClick={handleLogout}><span><UiIcon name="arrowLeft" size={15} /></span> Keluar dari akun</button><div className="sidebar-meta"><span className="sidebar-shift-status"><i className="online-dot realtime-dot-live" />Shift aktif</span></div></div>
       </aside>
       <section className="main-content">
-        <header className={`topbar${routeLoading ? " is-route-loading" : " is-route-ready"}${adminIsScrolled ? " is-scrolled" : ""}`}>
+        <header className={`topbar${routeLoading ? " is-route-loading" : " is-route-ready"}`}>
           <button className="mobile-menu-button" type="button" aria-label="Buka menu navigasi" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen((current) => !current)}><UiIcon name="menu" size={16} /><span>Menu</span></button>
           <div className="mobile-brand"><span className="brand-mark"><CanteenOSMark size={34} /></span><strong>Canteen<span>OS</span></strong></div>
           <div className="breadcrumb"><span>Workspace</span><i>•</i><strong>{activeNav === "dashboard" ? `Selamat datang kembali, ${profileFirstName}` : activeMeta.title}</strong></div>

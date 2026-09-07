@@ -6170,13 +6170,9 @@ html[data-theme] .management-skeleton-product-row { grid-template-columns: 32px 
   html[data-theme] .management-skeleton-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Admin visual polish: richer light surfaces, controlled depth, and a very
- * subtle pointer parallax layer. The decorative treatment is scoped to the
- * admin shell so the customer storefront keeps its own visual language. */
+/* Admin visual polish: keep the workspace readable without scroll-bound
+ * decoration. Customer motion remains scoped to the storefront below. */
 html[data-theme="light"] {
-  --admin-glow-coral: rgba(241, 142, 103, .16);
-  --admin-glow-blue: rgba(83, 111, 211, .13);
-  --admin-glow-mint: rgba(81, 182, 157, .12);
   --admin-welcome-start: #f8fbff;
   --admin-welcome-mid: #e9f4f7;
   --admin-welcome-end: #fff1e9;
@@ -6184,9 +6180,6 @@ html[data-theme="light"] {
 }
 
 html[data-theme="dark"] {
-  --admin-glow-coral: rgba(235, 91, 164, .14);
-  --admin-glow-blue: rgba(104, 114, 255, .16);
-  --admin-glow-mint: rgba(96, 208, 181, .10);
   --admin-welcome-start: #3c2b50;
   --admin-welcome-mid: #332540;
   --admin-welcome-end: #4c2d4d;
@@ -6194,8 +6187,6 @@ html[data-theme="dark"] {
 }
 
 html[data-theme] .app-shell {
-  --admin-parallax-x: 0px;
-  --admin-parallax-y: 0px;
   position: relative;
   isolation: isolate;
   overflow-x: clip;
@@ -6204,19 +6195,14 @@ html[data-theme] .app-shell {
 html[data-theme] .app-shell .main-content {
   position: relative;
   z-index: 1;
-  background:
-    radial-gradient(circle at calc(105% + var(--admin-parallax-x)) calc(0% + var(--admin-parallax-y)), var(--admin-glow-coral) 0, transparent 24rem),
-    radial-gradient(circle at calc(-8% - var(--admin-parallax-x)) calc(36% - var(--admin-parallax-y)), var(--admin-glow-blue) 0, transparent 25rem),
-    radial-gradient(circle at calc(82% + var(--admin-parallax-x)) calc(72% + var(--admin-parallax-y)), var(--admin-glow-mint) 0, transparent 22rem),
-    var(--reset-canvas);
-  background-attachment: fixed;
-  transition: background-position .55s cubic-bezier(.22, .8, .3, 1);
+  background: var(--reset-canvas);
 }
 
 html[data-theme] .app-shell .topbar {
   border-bottom-color: color-mix(in srgb, var(--reset-accent) 13%, var(--reset-border));
-  background: color-mix(in srgb, var(--reset-canvas) 84%, transparent);
-  backdrop-filter: blur(18px);
+  background: var(--reset-surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 html[data-theme] .app-shell .dashboard-welcome-card {
@@ -6233,7 +6219,6 @@ html[data-theme] .app-shell .dashboard-welcome-card::after {
   z-index: -1;
   pointer-events: none;
   content: "";
-  transition: transform .55s cubic-bezier(.22, .8, .3, 1);
 }
 
 html[data-theme] .app-shell .dashboard-welcome-card::before {
@@ -6243,7 +6228,6 @@ html[data-theme] .app-shell .dashboard-welcome-card::before {
   height: 300px;
   border: 1px solid color-mix(in srgb, var(--reset-accent) 22%, transparent);
   border-radius: 50%;
-  transform: translate3d(calc(var(--admin-parallax-x) * .65), calc(var(--admin-parallax-y) * .65), 0);
 }
 
 html[data-theme] .app-shell .dashboard-welcome-card::after {
@@ -6253,7 +6237,7 @@ html[data-theme] .app-shell .dashboard-welcome-card::after {
   height: 210px;
   border-radius: 48% 52% 0 0;
   background: linear-gradient(135deg, color-mix(in srgb, var(--reset-accent) 18%, transparent), color-mix(in srgb, var(--reset-pink) 15%, transparent));
-  transform: translate3d(calc(var(--admin-parallax-x) * -.45), calc(var(--admin-parallax-y) * -.45), 0) rotate(-10deg);
+  transform: rotate(-10deg);
 }
 
 html[data-theme] .app-shell .dashboard-welcome-card > * {
@@ -6266,11 +6250,10 @@ html[data-theme] .app-shell .stat-card {
   isolation: isolate;
   border-color: color-mix(in srgb, var(--reset-accent) 16%, var(--reset-border));
   box-shadow: var(--admin-card-shadow);
-  transition: transform .24s cubic-bezier(.22, .8, .3, 1), box-shadow .24s ease, filter .24s ease;
+  transition: box-shadow .24s ease;
 }
 
 html[data-theme] .app-shell .stat-card:hover {
-  filter: saturate(1.06);
   box-shadow: 0 22px 42px color-mix(in srgb, var(--reset-accent) 16%, transparent);
 }
 
@@ -6385,7 +6368,6 @@ html[data-theme="light"] .app-shell {
   html[data-theme] .app-shell .main-content {
     padding-inline: 12px;
     overflow-x: clip;
-    background-attachment: scroll;
   }
 
   html[data-theme] .app-shell .topbar {
@@ -8602,9 +8584,9 @@ html[data-theme] .app-shell .topbar-panel-heading-actions .topbar-panel-back:foc
     background-position: right center;
     background-repeat: no-repeat;
     background-size: 155% auto;
-    filter: blur(1.2px) saturate(.92) contrast(.98);
+    filter: none;
     opacity: .9;
-    transform: translate3d(calc(var(--admin-parallax-x) * .28), calc(var(--admin-parallax-y) * .28), 0) scale(1.035);
+    transform: scale(1.035);
     -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, .08) 13%, rgba(0, 0, 0, .62) 43%, #000 73%, #000 100%);
     mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, .08) 13%, rgba(0, 0, 0, .62) 43%, #000 73%, #000 100%);
   }
@@ -8805,7 +8787,6 @@ html[data-theme] .app-shell .line-chart-grid line {
 
 html[data-theme] .app-shell .sales-line {
   stroke: var(--ui-chart-sales) !important;
-  filter: drop-shadow(0 4px 4px color-mix(in srgb, var(--ui-chart-sales) 18%, transparent)) !important;
 }
 
 html[data-theme] .app-shell .sales-area {
@@ -12635,37 +12616,44 @@ html[data-theme] .customer-portal.customer-app .customer-skeleton-setting-icon {
   }
 
   html[data-theme] .app-shell:not(.sidebar-collapsed) .sidebar-brand {
-    grid-template-columns: 44px minmax(0, 1fr) 36px;
-    min-height: 62px;
-    gap: 12px;
-    padding: 0 10px 20px;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 30px;
+    min-height: 56px;
+    gap: 8px;
+    padding: 0 6px 16px;
   }
 
   html[data-theme] .app-shell:not(.sidebar-collapsed) .sidebar-brand .brand-mark {
-    width: 44px;
-    height: 44px;
-    flex-basis: 44px;
-    border-radius: 13px;
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    border-radius: 10px;
   }
 
   html[data-theme] .app-shell:not(.sidebar-collapsed) .sidebar-brand-copy strong {
-    font-size: 20px;
-    line-height: 1.05;
+    min-width: 0;
+    white-space: nowrap;
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  html[data-theme] .app-shell:not(.sidebar-collapsed) .sidebar-brand-copy {
+    min-width: 0;
   }
 
   html[data-theme] .app-shell:not(.sidebar-collapsed) .sidebar-brand-copy small {
-    margin-top: 5px;
-    font-size: 8.5px;
-    letter-spacing: .045em;
+    margin-top: 4px;
+    font-size: 7px;
+    letter-spacing: .02em;
     line-height: 1.2;
     text-overflow: clip;
   }
 
   html[data-theme] .app-shell:not(.sidebar-collapsed) .sidebar-collapse {
-    width: 36px;
-    height: 36px;
-    flex-basis: 36px;
-    border-radius: 11px;
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+    border-radius: 10px;
   }
 
   html[data-theme] .app-shell .side-nav {
@@ -19583,29 +19571,11 @@ html[data-theme] .app-shell .module-card > .module-toolbar {
     left: 78px;
   }
 
-  html[data-theme] .app-shell .topbar.is-scrolled {
-    border-bottom-color: color-mix(in srgb, var(--reset-accent) 24%, var(--reset-border));
-    background: var(--reset-surface);
-    box-shadow: 0 8px 18px rgba(35, 43, 64, .07);
-  }
-
-  html[data-theme="dark"] .app-shell .topbar.is-scrolled {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, .2);
-  }
-
   html[data-theme] .app-shell .module-card > .module-toolbar {
     position: sticky;
     top: var(--admin-topbar-height, 76px);
     z-index: 12;
     background: var(--reset-surface);
-  }
-
-  html[data-theme] .app-shell.is-scrolled .module-card > .module-toolbar {
-    box-shadow: 0 10px 18px rgba(35, 43, 64, .07);
-  }
-
-  html[data-theme="dark"] .app-shell.is-scrolled .module-card > .module-toolbar {
-    box-shadow: 0 10px 20px rgba(0, 0, 0, .18);
   }
 
   html[data-theme] .app-shell .route-view,
@@ -19887,4 +19857,33 @@ html[data-theme] .app-shell .admin-search-status {
   color: var(--reset-ink-soft);
   font-size: 9px;
   line-height: 1.35;
+}
+
+/* Admin performance guard: entrance motion is kept, but no persistent
+ * compositor hints are left on the long workspace after it settles. Skeleton
+ * shimmer is intentionally excluded so loading feedback remains unchanged. */
+html[data-theme] .app-shell .page-motion-item,
+html[data-theme] .app-shell .page-motion-card,
+html[data-theme] .app-shell .page-motion-child,
+html[data-theme] .app-shell .page-motion-row,
+html[data-theme] .app-shell .page-motion-micro,
+html[data-theme] .app-shell .page-motion-shell-part,
+html[data-theme] .app-shell .page-motion-sidebar-brand,
+html[data-theme] .app-shell .page-motion-sidebar-part,
+html[data-theme] .app-shell .page-motion-sidebar-label,
+html[data-theme] .app-shell .page-motion-sidebar-section,
+html[data-theme] .app-shell .page-motion-sidebar-nav-item,
+html[data-theme] .app-shell .page-motion-nav-item {
+  will-change: auto;
+}
+
+@media (max-width: 900px) {
+  html[data-theme] .app-shell .mobile-brand {
+    min-width: 0;
+  }
+
+  html[data-theme] .app-shell .mobile-brand strong {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 }
