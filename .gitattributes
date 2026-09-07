@@ -1,0 +1,3 @@
+# Keep runtime styles tracked and syntax-highlighted, but keep the repository
+# language indicator focused on the TypeScript application logic.
+app/*.css linguist-detectable=false
